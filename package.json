@@ -1,6 +1,6 @@
 {
   "name": "ibwframe",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "IBWFrame — Movie & TV Series Discovery Platform powered by TMDB API",
   "private": true,
   "engines": {

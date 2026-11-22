@@ -16,6 +16,10 @@
   const watchlistCountEl = document.getElementById('watchlistCount');
   const trailerModal = document.getElementById('trailerModal');
   const trailerContainer = document.getElementById('trailerContainer');
+  const trailerTitleEl = document.getElementById('trailerTitle');
+  const trailerSubtitleEl = document.getElementById('trailerSubtitle');
+  const youtubeExternalLinkEl = document.getElementById('youtubeExternalLink');
+  const trailerSwitcherEl = document.getElementById('trailerSwitcher');
   const toastContainer = document.getElementById('toastContainer');
 
   function showToast(message) {
@@ -23,7 +27,7 @@
     el.className = 'toast';
     el.textContent = message;
     toastContainer.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    setTimeout(() => el.remove(), 3200);
   }
 
   function updateWatchlistBadge() {
@@ -56,9 +60,11 @@
     updateWatchlistBadge();
   }
 
-  async function apiGet(path, params = {}) {
+  async function apiGet(path, params = {}, skipDefaultLang = false) {
     const url = new URL(`/api/tmdb${path}`, window.location.origin);
-    url.searchParams.set('language', state.lang);
+    if (!skipDefaultLang && !params.language) {
+      url.searchParams.set('language', state.lang);
+    }
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null && v !== '') {
         url.searchParams.set(k, String(v));
@@ -70,6 +76,55 @@
       throw new Error(data.error || data.status_message || `Ошибка сервера (${res.status})`);
     }
     return data;
+  }
+
+  // Многоступенчатый поиск видео с YouTube: RU -> EN -> все языки (include_video_language)
+  async function fetchAllYoutubeVideos(mediaType, id) {
+    const requests = [
+      apiGet(`/${mediaType}/${id}/videos`, { language: 'ru-RU' }, true).catch(() => ({ results: [] })),
+      apiGet(`/${mediaType}/${id}/videos`, { language: 'en-US' }, true).catch(() => ({ results: [] })),
+      apiGet(`/${mediaType}/${id}/videos`, { include_video_language: 'ru,en,null' }, true).catch(() => ({ results: [] }))
+    ];
+
+    const responses = await Promise.all(requests);
+    const merged = [];
+    const seenKeys = new Set();
+
+    for (const resp of responses) {
+      for (const v of resp.results || []) {
+        if (v.site === 'YouTube' && v.key && !seenKeys.has(v.key)) {
+          seenKeys.add(v.key);
+          merged.push(v);
+        }
+      }
+    }
+
+    const typePriority = {
+      Trailer: 1,
+      Teaser: 2,
+      Clip: 3,
+      Featurette: 4,
+      'Behind the Scenes': 5
+    };
+
+    const langPriority = (iso) => {
+      if (state.lang.startsWith('ru')) {
+        if (iso === 'ru') return 1;
+        if (iso === 'en') return 2;
+        return 3;
+      }
+      if (iso === 'en') return 1;
+      if (iso === 'ru') return 2;
+      return 3;
+    };
+
+    return merged.sort((a, b) => {
+      const tDiff = (typePriority[a.type] || 10) - (typePriority[b.type] || 10);
+      if (tDiff !== 0) return tDiff;
+      const lDiff = langPriority(a.iso_639_1) - langPriority(b.iso_639_1);
+      if (lDiff !== 0) return lDiff;
+      return Number(Boolean(b.official)) - Number(Boolean(a.official));
+    });
   }
 
   function posterUrl(path, size = 'w500') {
@@ -121,6 +176,7 @@
     const title = item.title || item.name || 'Без названия';
     const year = formatYear(item.release_date || item.first_air_date);
     const active = isInWatchlist(item.id, mediaType) ? 'active' : '';
+    const subtitleExtra = item.subtitle_extra ? ` • ${escapeHtml(item.subtitle_extra)}` : '';
     const payload = encodeURIComponent(
       JSON.stringify({
         id: item.id,
@@ -143,37 +199,110 @@
         </div>
         <div class="card-body">
           <a href="/${mediaType}/${item.id}" data-link class="card-title">${escapeHtml(title)}</a>
-          <div class="card-sub">${mediaType === 'tv' ? 'Сериал' : 'Фильм'} • ${year}</div>
+          <div class="card-sub">${mediaType === 'tv' ? 'Сериал' : 'Фильм'} • ${year}${subtitleExtra}</div>
         </div>
       </article>
     `;
   }
 
-  function openTrailer(videoKey) {
-    if (!videoKey) {
-      showToast('Трейлер для этого тайтла не найден');
+  function playSelectedVideo(video, titleText) {
+    if (!video || !video.key) return;
+    const langTag = video.iso_639_1 ? video.iso_639_1.toUpperCase() : '';
+    trailerTitleEl.textContent = titleText || video.name || 'Трейлер';
+    trailerSubtitleEl.textContent = [video.type, langTag, video.name].filter(Boolean).join(' • ');
+    youtubeExternalLinkEl.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.key)}`;
+
+    trailerContainer.innerHTML = `<iframe
+      src="https://www.youtube.com/embed/${encodeURIComponent(video.key)}?autoplay=1&rel=0&modestbranding=1&playsinline=1"
+      title="${escapeHtml(video.name || titleText || 'YouTube trailer')}"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+      allowfullscreen
+    ></iframe>`;
+  }
+
+  function openTrailerModal(videos = [], titleText = 'Трейлер') {
+    if (!videos.length) {
+      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${titleText} трейлер`)}`;
+      showToast('На TMDB нет прикреплённого ролика — открываем поиск на YouTube');
+      window.open(searchUrl, '_blank', 'noopener,noreferrer');
       return;
     }
-    trailerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(
-      videoKey
-    )}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+
+    playSelectedVideo(videos[0], titleText);
+
+    if (videos.length > 1) {
+      trailerSwitcherEl.innerHTML = videos
+        .slice(0, 8)
+        .map((v, idx) => {
+          const langLabel = v.iso_639_1 ? ` [${v.iso_639_1.toUpperCase()}]` : '';
+          const label = `${v.type || 'Видео'}${langLabel}: ${v.name || `#${idx + 1}`}`;
+          return `<button type="button" class="trailer-chip ${idx === 0 ? 'active' : ''}" data-video-idx="${idx}">${escapeHtml(
+            label
+          )}</button>`;
+        })
+        .join('');
+
+      trailerSwitcherEl.querySelectorAll('.trailer-chip').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-video-idx'));
+          trailerSwitcherEl.querySelectorAll('.trailer-chip').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          playSelectedVideo(videos[idx], titleText);
+        });
+      });
+    } else {
+      trailerSwitcherEl.innerHTML = '';
+    }
+
     trailerModal.classList.add('open');
     trailerModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
   }
 
   function closeTrailer() {
     trailerModal.classList.remove('open');
     trailerModal.setAttribute('aria-hidden', 'true');
     trailerContainer.innerHTML = '';
+    trailerSwitcherEl.innerHTML = '';
+    document.body.style.overflow = '';
   }
 
-  function pickBestTrailer(videos = []) {
-    return (
-      videos.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official) ||
-      videos.find((v) => v.site === 'YouTube' && v.type === 'Trailer') ||
-      videos.find((v) => v.site === 'YouTube') ||
-      null
-    );
+  function deduplicateCreditsById(items = [], type) {
+    const map = new Map();
+    for (const entry of items) {
+      if ((entry.media_type || (entry.first_air_date ? 'tv' : 'movie')) !== type) continue;
+      if (!entry.id) continue;
+
+      const roleLabel = entry.character
+        ? entry.character
+        : entry.job
+        ? entry.job
+        : '';
+
+      if (!map.has(entry.id)) {
+        map.set(entry.id, {
+          ...entry,
+          media_type: type,
+          roles: roleLabel ? [roleLabel] : []
+        });
+      } else if (roleLabel) {
+        const existing = map.get(entry.id);
+        if (!existing.roles.includes(roleLabel)) {
+          existing.roles.push(roleLabel);
+        }
+      }
+    }
+
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        subtitle_extra: item.roles.slice(0, 2).join(', ')
+      }))
+      .sort((a, b) => {
+        const posterDiff = Number(Boolean(b.poster_path)) - Number(Boolean(a.poster_path));
+        if (posterDiff !== 0) return posterDiff;
+        return (b.popularity || 0) - (a.popularity || 0);
+      });
   }
 
   async function renderHome() {
@@ -212,7 +341,7 @@
                 <p class="hero-overview">${escapeHtml(featured.overview || 'Описание скоро появится.')}</p>
                 <div class="btn-group">
                   <a href="/${featuredType}/${featured.id}" data-link class="btn btn-primary">Подробнее</a>
-                  <button class="btn btn-secondary" data-play-hero="${featuredType}:${featured.id}">▶ Смотреть трейлер</button>
+                  <button class="btn btn-secondary" data-play-hero="${featuredType}:${featured.id}" data-play-title="${escapeHtml(featuredTitle)}">▶ Смотреть трейлер</button>
                 </div>
               </div>
             </div>
@@ -439,22 +568,27 @@
     appEl.innerHTML = `<div class="container section">${renderSkeletons(6)}</div>`;
 
     try {
-      const [details, credits, videosData, similar] = await Promise.all([
+      const [details, credits, videos, similar] = await Promise.all([
         apiGet(`/${mediaType}/${id}`),
         apiGet(`/${mediaType}/${id}/credits`),
-        apiGet(`/${mediaType}/${id}/videos`),
+        fetchAllYoutubeVideos(mediaType, id),
         apiGet(`/${mediaType}/${id}/similar`)
       ]);
 
       const title = details.title || details.name || 'Без названия';
+      const origTitle = details.original_title || details.original_name || '';
       const dateStr = details.release_date || details.first_air_date || '';
+      const yearStr = formatYear(dateStr);
       const runtime = details.runtime
         ? `${details.runtime} мин`
         : details.number_of_seasons
         ? `Сезонов: ${details.number_of_seasons}`
         : '';
-      const trailer = pickBestTrailer(videosData.results || []);
       const inFav = isInWatchlist(details.id, mediaType);
+      const directors = (credits.crew || []).filter((c) => c.job === 'Director');
+      const youtubeSearchQuery = `${origTitle || title} ${yearStr !== '—' ? yearStr : ''} trailer`.trim();
+      const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeSearchQuery)}`;
+
       const favPayload = encodeURIComponent(
         JSON.stringify({
           id: details.id,
@@ -474,9 +608,17 @@
               <h1 class="hero-title">${escapeHtml(title)}</h1>
               <div class="hero-meta">
                 <span class="rating-pill">★ ${formatRating(details.vote_average)} (${details.vote_count || 0})</span>
-                <span>${formatYear(dateStr)}</span>
+                <span>${yearStr}</span>
                 ${runtime ? `<span>${escapeHtml(runtime)}</span>` : ''}
               </div>
+
+              ${
+                directors.length
+                  ? `<div class="hero-meta"><span>Режиссёр: ${directors
+                      .map((d) => `<a href="/person/${d.id}" data-link style="text-decoration:underline;">${escapeHtml(d.name)}</a>`)
+                      .join(', ')}</span></div>`
+                  : ''
+              }
 
               <div class="genres-list">
                 ${(details.genres || [])
@@ -489,7 +631,11 @@
               )}</p>
 
               <div class="btn-group">
-                <button class="btn btn-primary" id="watchTrailerBtn">▶ Смотреть трейлер</button>
+                ${
+                  videos.length
+                    ? `<button class="btn btn-primary" id="watchTrailerBtn">▶ Смотреть трейлер (${videos.length})</button>`
+                    : `<a href="${youtubeSearchUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">▶ Найти трейлер на YouTube ↗</a>`
+                }
                 <button class="btn btn-secondary ${inFav ? 'in-watchlist' : ''}" data-fav-detail="${favPayload}">
                   ${inFav ? '✓ В избранном' : '+ В избранное'}
                 </button>
@@ -547,7 +693,7 @@
       `;
 
       document.getElementById('watchTrailerBtn')?.addEventListener('click', () => {
-        openTrailer(trailer?.key);
+        openTrailerModal(videos, title);
       });
     } catch (err) {
       appEl.innerHTML = `<div class="container"><div class="state-box"><h3>Не удалось загрузить страницу</h3><p>${escapeHtml(
@@ -564,10 +710,9 @@
         apiGet(`/person/${id}/combined_credits`)
       ]);
 
-      const knownFor = (credits.cast || [])
-        .filter((x) => x.poster_path)
-        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-        .slice(0, 12);
+      const allWorks = [...(credits.cast || []), ...(credits.crew || [])];
+      const moviesList = deduplicateCreditsById(allWorks, 'movie').slice(0, 16);
+      const tvList = deduplicateCreditsById(allWorks, 'tv').slice(0, 16);
 
       appEl.innerHTML = `
         <section class="details-hero">
@@ -576,6 +721,7 @@
             <div>
               <h1 class="hero-title">${escapeHtml(person.name)}</h1>
               <div class="hero-meta">
+                ${person.known_for_department ? `<span>${escapeHtml(person.known_for_department)}</span>` : ''}
                 ${person.birthday ? `<span>Дата рождения: ${escapeHtml(person.birthday)}</span>` : ''}
                 ${person.place_of_birth ? `<span>${escapeHtml(person.place_of_birth)}</span>` : ''}
               </div>
@@ -586,13 +732,28 @@
           </div>
         </section>
 
-        <div class="container section">
-          <div class="section-header">
-            <h2 class="section-title">Известные работы</h2>
-          </div>
-          <div class="cards-grid">
-            ${knownFor.map((item) => renderMediaCard(item)).join('')}
-          </div>
+        <div class="container">
+          <section class="section">
+            <div class="section-header">
+              <h2 class="section-title">Фильмы (${moviesList.length})</h2>
+            </div>
+            ${
+              moviesList.length
+                ? `<div class="cards-grid">${moviesList.map((item) => renderMediaCard(item, 'movie')).join('')}</div>`
+                : `<div class="state-box"><p>Фильмы не найдены.</p></div>`
+            }
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <h2 class="section-title">Сериалы (${tvList.length})</h2>
+            </div>
+            ${
+              tvList.length
+                ? `<div class="cards-grid">${tvList.map((item) => renderMediaCard(item, 'tv')).join('')}</div>`
+                : `<div class="state-box"><p>Сериалы не найдены.</p></div>`
+            }
+          </section>
         </div>
       `;
     } catch (err) {
@@ -663,7 +824,6 @@
     router();
   }
 
-  // Global event delegation
   document.addEventListener('click', async (e) => {
     const link = e.target.closest('[data-link]');
     if (link) {
@@ -696,10 +856,10 @@
     const playHero = e.target.closest('[data-play-hero]');
     if (playHero) {
       const [type, id] = playHero.getAttribute('data-play-hero').split(':');
+      const heroTitle = playHero.getAttribute('data-play-title') || 'Трейлер';
       try {
-        const videosData = await apiGet(`/${type}/${id}/videos`);
-        const trailer = pickBestTrailer(videosData.results || []);
-        openTrailer(trailer?.key);
+        const videos = await fetchAllYoutubeVideos(type, id);
+        openTrailerModal(videos, heroTitle);
       } catch (err) {
         showToast(err.message);
       }

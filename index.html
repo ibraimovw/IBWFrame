@@ -53,16 +53,27 @@
 
   <main id="app" class="main-content"></main>
 
-  <!-- Модальное окно трейлера -->
+  <!-- Полноразмерный кинотеатр-плеер трейлера -->
   <div class="modal" id="trailerModal" aria-hidden="true">
     <div class="modal-backdrop" data-close-modal></div>
     <div class="modal-dialog modal-video">
-      <button class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-title" id="trailerTitle">Трейлер</span>
+          <span class="modal-subtitle" id="trailerSubtitle"></span>
+        </div>
+        <div class="modal-header-actions">
+          <a id="youtubeExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="modal-yt-btn">
+            Открыть на YouTube ↗
+          </a>
+          <button class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+        </div>
+      </div>
       <div class="video-wrapper" id="trailerContainer"></div>
+      <div class="trailer-switcher" id="trailerSwitcher"></div>
     </div>
   </div>
 
-  <!-- Toast уведомления -->
   <div class="toast-container" id="toastContainer"></div>
 
   <footer class="footer">

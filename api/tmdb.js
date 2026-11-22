@@ -21,7 +21,7 @@ const ALLOWED_PARAMS = new Set([
   'primary_release_year', 'first_air_date_year', 'with_origin_country',
   'vote_average.gte', 'vote_count.gte', 'with_runtime.gte', 'with_runtime.lte',
   'sort_by', 'primary_release_date.gte', 'primary_release_date.lte',
-  'region', 'watch_region', 'with_watch_providers'
+  'region', 'watch_region', 'with_watch_providers', 'include_video_language'
 ]);
 
 function isAllowedEndpoint(endpoint) {
