@@ -14,6 +14,7 @@ import {
   isFavorite,
   isInWatchlist,
   isWatched,
+  notifyToast,
   setRating,
   setWatchRegion,
   state,
@@ -211,6 +212,11 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
                       <button type="button" class="btn btn-secondary" data-add-collection>
                         ${icons.plus}
                         <span>${escapeHtml(dict.detail.addToCollection)}</span>
+                      </button>
+
+                      <button type="button" class="btn btn-secondary" data-share>
+                        ${icons.share}
+                        <span>${escapeHtml(dict.detail.share)}</span>
                       </button>
                     </div>
 
@@ -436,6 +442,51 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
             vote_average: detail.vote_average || 0,
             genre_ids: (detail.genres || []).map((g) => g.id),
           });
+        });
+
+        container.querySelector('[data-share]')?.addEventListener('click', async () => {
+          const shareUrl = window.location.href;
+          const shareTitle = year ? `${title} (${year}) — IBWFrame` : `${title} — IBWFrame`;
+          const shareText = detail.overview ? detail.overview.slice(0, 140) : shareTitle;
+
+          if (typeof navigator.share === 'function') {
+            try {
+              await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+              return;
+            } catch (err) {
+              if (err && err.name === 'AbortError') return;
+            }
+          }
+
+          let copied = false;
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            try {
+              await navigator.clipboard.writeText(shareUrl);
+              copied = true;
+            } catch {
+              copied = false;
+            }
+          }
+
+          if (!copied) {
+            try {
+              const ta = document.createElement('textarea');
+              ta.value = shareUrl;
+              ta.setAttribute('readonly', '');
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.select();
+              copied = document.execCommand('copy');
+              ta.remove();
+            } catch {
+              copied = false;
+            }
+          }
+
+          if (copied) {
+            notifyToast(dict.actions.linkCopied);
+          }
         });
 
         container.querySelectorAll('[data-rate]').forEach((btn) => {

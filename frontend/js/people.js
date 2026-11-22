@@ -103,12 +103,22 @@ export function renderPeoplePage(container, outerSignal) {
     for (const person of displayList) {
       const photo = getImageUrl(person.profile_path, 'w342');
       const deptLabel = translateDepartment(person.known_for_department || '', state.lang);
-      const known = (person.known_for || []).slice(0, 2).map((k) => getMediaTitle(k)).join(', ');
+      const topKnown = [...(person.known_for || [])]
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0) || (b.vote_count || 0) - (a.vote_count || 0))
+        .slice(0, 2)
+        .map((k) => getMediaTitle(k))
+        .filter(Boolean)
+        .join(', ');
       const card = document.createElement('article');
       card.className = 'person-mini-card';
       card.tabIndex = 0;
       card.setAttribute('role', 'link');
       card.innerHTML = `
+        ${
+          topKnown
+            ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}<span>${escapeHtml(topKnown)}</span></div>`
+            : ''
+        }
         <div class="person-mini-photo">
           ${
             photo
@@ -119,7 +129,6 @@ export function renderPeoplePage(container, outerSignal) {
         <div class="person-mini-body">
           <div class="person-mini-name">${escapeHtml(person.name || '')}</div>
           ${deptLabel ? `<div class="person-mini-role">${escapeHtml(deptLabel)}</div>` : ''}
-          ${known ? `<div class="person-mini-role">${escapeHtml(known)}</div>` : ''}
         </div>
       `;
       card.addEventListener('click', () => navigateTo(`/person/${person.id}`));

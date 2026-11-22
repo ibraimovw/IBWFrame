@@ -90,6 +90,8 @@ export const translations = {
       recommendedSubtitleDefault: 'Acclaimed cinema to start your collection',
       seeAll: 'Explore All',
       curatedTag: 'Curated',
+      scrollPrev: 'Scroll left',
+      scrollNext: 'Scroll right',
     },
     catalog: {
       moviesTitle: 'Movies',
@@ -204,6 +206,7 @@ export const translations = {
       findTrailerOnYoutube: 'Find Trailer on YouTube',
       closeModal: 'Close',
       back: 'Back',
+      share: 'Share',
     },
     people: {
       title: 'People',
@@ -214,6 +217,7 @@ export const translations = {
       birthday: 'Born',
       birthplace: 'Place of Birth',
       knownFor: 'Known For',
+      popularFilmsLabel: 'Top films',
       biography: 'Biography',
       noBio: 'No biography is currently available.',
       bioEnFallback: 'Shown in English because a Russian biography is not available in TMDB.',
@@ -299,6 +303,7 @@ export const translations = {
       collectionDeleted: 'Collection deleted',
       addedToCollection: 'Added to collection',
       removedFromCollection: 'Removed from collection',
+      linkCopied: 'Link copied to clipboard',
     },
     errors: {
       offlineTitle: 'You appear to be offline',
@@ -410,6 +415,8 @@ export const translations = {
       recommendedSubtitleDefault: 'Признанное кино для старта вашей коллекции',
       seeAll: 'Смотреть все',
       curatedTag: 'Подборка',
+      scrollPrev: 'Прокрутить влево',
+      scrollNext: 'Прокрутить вправо',
     },
     catalog: {
       moviesTitle: 'Фильмы',
@@ -524,6 +531,7 @@ export const translations = {
       findTrailerOnYoutube: 'Найти трейлер на YouTube',
       closeModal: 'Закрыть',
       back: 'Назад',
+      share: 'Поделиться',
     },
     people: {
       title: 'Персоны',
@@ -534,6 +542,7 @@ export const translations = {
       birthday: 'Дата рождения',
       birthplace: 'Место рождения',
       knownFor: 'Известен как',
+      popularFilmsLabel: 'Популярные фильмы',
       biography: 'Биография',
       noBio: 'Биография пока отсутствует.',
       bioEnFallback: 'Показано на английском, так как перевод биографии отсутствует в TMDB.',
@@ -619,6 +628,7 @@ export const translations = {
       collectionDeleted: 'Коллекция удалена',
       addedToCollection: 'Добавлено в коллекцию',
       removedFromCollection: 'Удалено из коллекции',
+      linkCopied: 'Ссылка скопирована',
     },
     errors: {
       offlineTitle: 'Нет подключения к интернету',
@@ -664,9 +674,9 @@ export function getT(lang) {
 }
 
 const DEPARTMENT_RU = {
-  Acting: 'Актёрское мастерство',
-  Actors: 'Актёрское мастерство',
-  Directing: 'Режиссура',
+  Acting: 'Актёр',
+  Actors: 'Актёр',
+  Directing: 'Режиссёр',
   Writing: 'Сценарий',
   Production: 'Продюсирование',
   Camera: 'Операторская работа',

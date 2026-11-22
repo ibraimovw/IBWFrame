@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   watchRegion: 'ibwframe_watch_region_v1',
   lastSearch: 'ibwframe_last_search_v1',
   catalogFiltersPrefix: 'ibwframe_filters_',
+  spotlightHistory: 'ibwframe_spotlight_history_v1',
 };
 
 function safeReadJson(storage, key, fallback) {
@@ -227,6 +228,27 @@ export function saveCatalogState(mediaType, state) {
     `${STORAGE_KEYS.catalogFiltersPrefix}${mediaType}`,
     state
   );
+}
+
+export function loadSpotlightHistory() {
+  const raw = safeReadJson(window.localStorage, STORAGE_KEYS.spotlightHistory, null);
+  if (!raw || typeof raw !== 'object') {
+    return { current: null, history: [] };
+  }
+  const isEntry = (e) =>
+    e &&
+    typeof e === 'object' &&
+    typeof e.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(e.date) &&
+    typeof e.id === 'number';
+  return {
+    current: isEntry(raw.current) ? raw.current : null,
+    history: Array.isArray(raw.history) ? raw.history.filter(isEntry) : [],
+  };
+}
+
+export function saveSpotlightHistory(record) {
+  safeWriteJson(window.localStorage, STORAGE_KEYS.spotlightHistory, record);
 }
 
 export function mediaKey(id, mediaType) {

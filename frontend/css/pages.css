@@ -753,6 +753,32 @@ html[data-theme='light'] .detail-backdrop-fade {
   transform: translateY(-4px);
 }
 
+.person-mini-known-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background-color: var(--bg-surface-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.person-mini-known-bar svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--accent-brand-warm);
+}
+
+.person-mini-known-bar span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .person-mini-photo {
   aspect-ratio: 3 / 4;
   width: 100%;

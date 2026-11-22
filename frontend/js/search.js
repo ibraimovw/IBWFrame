@@ -112,11 +112,22 @@ export function renderSearchPage(container, outerSignal) {
 
       if (itemType === 'person') {
         const photo = getImageUrl(item.profile_path, 'w342');
+        const topKnown = [...(item.known_for || [])]
+          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0) || (b.vote_count || 0) - (a.vote_count || 0))
+          .slice(0, 2)
+          .map((k) => getMediaTitle(k))
+          .filter(Boolean)
+          .join(', ');
         const pCard = document.createElement('article');
         pCard.className = 'person-mini-card';
         pCard.tabIndex = 0;
         pCard.setAttribute('role', 'link');
         pCard.innerHTML = `
+          ${
+            topKnown
+              ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}<span>${escapeHtml(topKnown)}</span></div>`
+              : ''
+          }
           <div class="person-mini-photo">
             ${
               photo

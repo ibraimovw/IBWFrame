@@ -138,6 +138,10 @@
   height: 14px;
 }
 
+.media-rail-wrap {
+  position: relative;
+}
+
 .media-rail {
   display: flex;
   gap: 16px;
@@ -161,6 +165,74 @@
 @media (min-width: 1024px) {
   .media-rail > .media-card {
     flex: 0 0 202px;
+  }
+}
+
+.rail-scroll-btn {
+  display: none;
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .rail-scroll-btn {
+    position: absolute;
+    top: calc((100% - 46px) * 0.48);
+    transform: translateY(-50%);
+    z-index: 6;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: none;
+    background-color: rgba(18, 21, 28, 0.88);
+    backdrop-filter: blur(8px);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), var(--shadow-md);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.16s ease,
+      background-color 0.16s ease,
+      color 0.16s ease;
+  }
+
+  html[data-theme='light'] .rail-scroll-btn {
+    background-color: rgba(255, 247, 241, 0.94);
+    box-shadow: inset 0 0 0 1px var(--border-color), var(--shadow-md);
+    color: var(--text-primary);
+  }
+
+  .rail-scroll-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .rail-scroll-prev {
+    left: 8px;
+  }
+
+  .rail-scroll-next {
+    right: 8px;
+  }
+
+  .media-rail-wrap:hover .rail-scroll-btn:not([data-hidden='true']),
+  .media-rail-wrap:focus-within .rail-scroll-btn:not([data-hidden='true']) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .rail-scroll-btn:hover:not([data-hidden='true']) {
+    transform: translateY(-50%) scale(1.06);
+    box-shadow: inset 0 0 0 1px var(--accent-brand-warm), var(--shadow-md);
+    color: var(--accent-brand-warm);
+  }
+
+  .rail-scroll-btn[data-hidden='true'] {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 

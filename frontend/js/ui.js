@@ -158,6 +158,7 @@ export function createMediaRail({
   actionLabel = '',
   onAction = null,
 }) {
+  const dict = t();
   const section = document.createElement('section');
 
   const header = document.createElement('div');
@@ -180,6 +181,9 @@ export function createMediaRail({
 
   section.appendChild(header);
 
+  const wrap = document.createElement('div');
+  wrap.className = 'media-rail-wrap';
+
   const rail = document.createElement('div');
   rail.className = 'media-rail no-scrollbar';
 
@@ -194,13 +198,60 @@ export function createMediaRail({
       `;
       rail.appendChild(sk);
     }
+    wrap.appendChild(rail);
   } else {
     for (const item of items) {
       rail.appendChild(createMediaCard(item, { explicitType }));
     }
+    wrap.appendChild(rail);
+
+    if (items.length > 0) {
+      const prevBtn = document.createElement('button');
+      prevBtn.type = 'button';
+      prevBtn.className = 'rail-scroll-btn rail-scroll-prev';
+      prevBtn.setAttribute('aria-label', dict.home.scrollPrev);
+      prevBtn.setAttribute('data-hidden', 'true');
+      prevBtn.innerHTML = icons.chevronLeft;
+
+      const nextBtn = document.createElement('button');
+      nextBtn.type = 'button';
+      nextBtn.className = 'rail-scroll-btn rail-scroll-next';
+      nextBtn.setAttribute('aria-label', dict.home.scrollNext);
+      nextBtn.setAttribute('data-hidden', 'true');
+      nextBtn.innerHTML = icons.chevronRight;
+
+      const syncArrows = () => {
+        if (!rail.isConnected) return;
+        const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+        const atStart = rail.scrollLeft <= 4;
+        const atEnd = maxScroll <= 4 || rail.scrollLeft >= maxScroll - 4;
+        prevBtn.setAttribute('data-hidden', atStart ? 'true' : 'false');
+        nextBtn.setAttribute('data-hidden', atEnd ? 'true' : 'false');
+      };
+
+      const scrollByStep = (direction) => {
+        const step = Math.max(320, Math.round(rail.clientWidth * 0.78));
+        rail.scrollBy({ left: direction * step, behavior: 'smooth' });
+      };
+
+      prevBtn.addEventListener('click', () => scrollByStep(-1));
+      nextBtn.addEventListener('click', () => scrollByStep(1));
+      rail.addEventListener('scroll', syncArrows, { passive: true });
+
+      if (typeof ResizeObserver === 'function') {
+        const ro = new ResizeObserver(syncArrows);
+        ro.observe(rail);
+      } else {
+        window.addEventListener('resize', syncArrows);
+      }
+
+      window.requestAnimationFrame(syncArrows);
+      wrap.appendChild(prevBtn);
+      wrap.appendChild(nextBtn);
+    }
   }
 
-  section.appendChild(rail);
+  section.appendChild(wrap);
   return section;
 }
 

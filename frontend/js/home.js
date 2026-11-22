@@ -9,6 +9,7 @@ import {
 import { EDITORIAL_COLLECTIONS } from './editorial.js';
 import { icons } from './icons.js';
 import { fetchPersonalizedRecommendations } from './recommendations.js';
+import { loadSpotlightHistory, saveSpotlightHistory } from './storage.js';
 import { ensureGenresLoaded, state, t } from './store.js';
 import {
   createErrorState,
@@ -17,6 +18,65 @@ import {
   navigateTo,
   openTrailerModal,
 } from './ui.js';
+
+function getLocalDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function daysBetweenKeys(olderKey, newerKey) {
+  const parseUtc = (key) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((parseUtc(newerKey) - parseUtc(olderKey)) / 86400000);
+}
+
+async function resolveDailySpotlight({ pool, lang, signal }) {
+  if (!Array.isArray(pool) || pool.length === 0) return null;
+
+  const todayKey = getLocalDateKey();
+  const saved = loadSpotlightHistory();
+  const recentHistory = (saved.history || []).filter((entry) => {
+    const diff = daysBetweenKeys(entry.date, todayKey);
+    return diff >= 0 && diff < 14;
+  });
+
+  if (saved.current && saved.current.date === todayKey) {
+    const inPool = pool.find((m) => m.id === saved.current.id);
+    if (inPool) return inPool;
+    try {
+      const fetched = await tmdbApi.getMovieDetail(saved.current.id, lang, signal);
+      if (fetched && fetched.id && fetched.backdrop_path) {
+        return fetched;
+      }
+    } catch {
+      // Fall through to picking a fresh candidate if detail lookup fails
+    }
+  }
+
+  const recentIds = new Set(recentHistory.map((h) => h.id));
+  const eligible = pool.filter((m) => !recentIds.has(m.id));
+  const candidates = eligible.length > 0 ? eligible : pool;
+  const dateSeed = Number(todayKey.replace(/-/g, '')) || 1;
+  const sliceLen = Math.min(candidates.length, 15);
+  const chosen = candidates[dateSeed % sliceLen] || candidates[0];
+
+  if (chosen) {
+    const nextHistory = [
+      { date: todayKey, id: chosen.id },
+      ...recentHistory.filter((h) => h.date !== todayKey && h.id !== chosen.id),
+    ].slice(0, 20);
+    saveSpotlightHistory({
+      current: { date: todayKey, id: chosen.id },
+      history: nextHistory,
+    });
+  }
+
+  return chosen || null;
+}
 
 function getTimePeriod() {
   const hour = new Date().getHours();
@@ -131,10 +191,26 @@ export function renderHomePage(container, signal) {
       if (signal.aborted) return;
 
       const popMovies = popularMoviesRes.results || [];
-      const spotlight = popMovies.find((m) => Boolean(m.backdrop_path)) || popMovies[0] || null;
       const trendingItems = (trendingRes.results || []).filter(
         (item) => item.media_type === 'movie' || item.media_type === 'tv'
       );
+
+      const spotlightPoolMap = new Map();
+      for (const item of [
+        ...trendingItems.filter((item) => item.media_type === 'movie'),
+        ...popMovies,
+        ...(topRatedRes.results || []),
+      ]) {
+        if (item && item.id && item.backdrop_path && !spotlightPoolMap.has(item.id)) {
+          spotlightPoolMap.set(item.id, item);
+        }
+      }
+      const spotlightPool = Array.from(spotlightPoolMap.values());
+      const spotlight =
+        (await resolveDailySpotlight({ pool: spotlightPool, lang: state.lang, signal })) ||
+        popMovies.find((m) => Boolean(m.backdrop_path)) ||
+        popMovies[0] ||
+        null;
 
       let recs = { items: [], personalized: false };
       try {
