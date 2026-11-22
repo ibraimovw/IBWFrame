@@ -51,8 +51,8 @@ export function initInteractiveEffects() {
         const nx = Math.max(-0.5, Math.min(0.5, (e.clientX - rect.left) / rect.width - 0.5));
         const ny = Math.max(-0.5, Math.min(0.5, (e.clientY - rect.top) / rect.height - 0.5));
         const isHero = card.classList.contains('hero-spotlight');
-        const maxDeg = isHero ? 2.4 : 6.5;
-        const maxShift = isHero ? 0 : 4;
+        const maxDeg = isHero ? 0.65 : 4.5;
+        const maxShift = isHero ? 0 : 3;
 
         card.classList.add('is-tilting');
         card.style.setProperty('--tilt-x', `${(-ny * 2 * maxDeg).toFixed(2)}deg`);

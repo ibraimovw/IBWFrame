@@ -1,4 +1,11 @@
-import { getImageUrl, getMediaTitle, getMediaYear, pickOfficialTrailer, tmdbApi } from './api.js';
+import {
+  getImageUrl,
+  getMediaTitle,
+  getMediaYear,
+  getYoutubeSearchUrl,
+  pickOfficialTrailer,
+  tmdbApi,
+} from './api.js';
 import { WATCH_REGIONS } from './editorial.js';
 import { translateJob, translateStatus } from './i18n.js';
 import { icons } from './icons.js';
@@ -69,6 +76,7 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
       const posterUrl = getImageUrl(detail.poster_path, 'w500');
       const backdropUrl = getImageUrl(detail.backdrop_path, 'w1280');
       const officialTrailer = pickOfficialTrailer(detail.videos?.results, state.lang);
+      const ytSearchUrl = getYoutubeSearchUrl(title || originalTitle, year, state.lang);
 
       const cast = (detail.credits?.cast || []).slice(0, 12);
       const director = isMovie
@@ -168,10 +176,22 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
                     }
 
                     <div class="detail-actions-row">
-                      <button type="button" class="btn btn-primary" data-watch-trailer ${officialTrailer ? '' : 'disabled'}>
-                        ${icons.play}
-                        <span>${escapeHtml(officialTrailer ? dict.detail.watchTrailer : dict.detail.trailerUnavailable)}</span>
-                      </button>
+                      ${
+                        officialTrailer?.key
+                          ? `<button type="button" class="btn btn-primary" data-watch-trailer>
+                              ${icons.play}
+                              <span>${escapeHtml(dict.detail.watchTrailer)}</span>
+                            </button>
+                            <a href="${escapeHtml(ytSearchUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                              ${icons.externalLink}
+                              <span>YouTube</span>
+                            </a>`
+                          : `<a href="${escapeHtml(ytSearchUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                              ${icons.play}
+                              <span>${escapeHtml(dict.detail.findTrailerOnYoutube)}</span>
+                              ${icons.externalLink}
+                            </a>`
+                      }
 
                       <button type="button" class="btn ${inWatchlist ? 'btn-active-soft' : 'btn-secondary'}" data-toggle-watchlist>
                         ${icons.bookmark}
@@ -384,9 +404,11 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
         container.querySelector('[data-back]')?.addEventListener('click', () => window.history.back());
 
         container.querySelector('[data-watch-trailer]')?.addEventListener('click', () => {
-          if (officialTrailer?.key) {
-            openTrailerModal({ youtubeKey: officialTrailer.key, title });
-          }
+          openTrailerModal({
+            youtubeKey: officialTrailer?.key || null,
+            title,
+            youtubeSearchUrl: ytSearchUrl,
+          });
         });
 
         container.querySelector('[data-toggle-watchlist]')?.addEventListener('click', () => {

@@ -159,31 +159,54 @@ export const tmdbApi = {
   },
 };
 
-function selectBestVideo(list) {
+export function getYoutubeSearchUrl(title, year = '', lang = 'en') {
+  const suffix = lang === 'ru' ? 'официальный трейлер' : 'official trailer';
+  const q = `${title || ''} ${year || ''} ${suffix}`.trim();
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+}
+
+function pickByType(list) {
   if (!list || list.length === 0) return null;
   return (
     list.find((v) => v.type === 'Trailer' && v.official) ||
     list.find((v) => v.type === 'Trailer') ||
+    list.find((v) => v.type === 'Teaser' && v.official) ||
     list.find((v) => v.type === 'Teaser') ||
-    list[0]
+    null
   );
 }
 
 export function pickOfficialTrailer(videos, lang = 'en') {
   if (!videos || videos.length === 0) return null;
-  const yt = videos.filter((v) => v.site === 'YouTube' && Boolean(v.key));
-  if (yt.length === 0) return null;
+  const trailers = videos.filter(
+    (v) =>
+      v.site === 'YouTube' &&
+      Boolean(v.key) &&
+      (v.type === 'Trailer' || v.type === 'Teaser')
+  );
+  if (trailers.length === 0) return null;
 
   const targetLang = lang === 'ru' ? 'ru' : 'en';
-  const langMatches = yt.filter((v) => (v.iso_639_1 || '').toLowerCase() === targetLang);
-  if (langMatches.length > 0) {
-    return selectBestVideo(langMatches);
-  }
+  const langTrailers = trailers.filter(
+    (v) => (v.iso_639_1 || '').toLowerCase() === targetLang && v.type === 'Trailer'
+  );
+  if (langTrailers.length > 0) return pickByType(langTrailers);
 
-  const enMatches = yt.filter((v) => (v.iso_639_1 || '').toLowerCase() === 'en');
-  if (enMatches.length > 0) {
-    return selectBestVideo(enMatches);
-  }
+  const enTrailers = trailers.filter(
+    (v) => (v.iso_639_1 || '').toLowerCase() === 'en' && v.type === 'Trailer'
+  );
+  if (enTrailers.length > 0) return pickByType(enTrailers);
 
-  return selectBestVideo(yt);
+  const anyTrailers = trailers.filter((v) => v.type === 'Trailer');
+  if (anyTrailers.length > 0) return pickByType(anyTrailers);
+
+  const langTeasers = trailers.filter(
+    (v) => (v.iso_639_1 || '').toLowerCase() === targetLang
+  );
+  if (langTeasers.length > 0) return pickByType(langTeasers);
+
+  const enTeasers = trailers.filter((v) => (v.iso_639_1 || '').toLowerCase() === 'en');
+  if (enTeasers.length > 0) return pickByType(enTeasers);
+
+  return pickByType(trailers);
 }

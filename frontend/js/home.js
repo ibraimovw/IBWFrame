@@ -1,4 +1,11 @@
-import { getImageUrl, getMediaTitle, getMediaYear, pickOfficialTrailer, tmdbApi } from './api.js';
+import {
+  getImageUrl,
+  getMediaTitle,
+  getMediaYear,
+  getYoutubeSearchUrl,
+  pickOfficialTrailer,
+  tmdbApi,
+} from './api.js';
 import { EDITORIAL_COLLECTIONS } from './editorial.js';
 import { icons } from './icons.js';
 import { fetchPersonalizedRecommendations } from './recommendations.js';
@@ -60,7 +67,7 @@ export function renderHomePage(container, signal) {
         </div>
         ${
           localTimeLabel
-            ? `<div class="welcome-time-badge tabular-nums">${icons.compass}<span>${escapeHtml(localTimeLabel)}</span></div>`
+            ? `<div class="welcome-time-badge tabular-nums">${icons.clock}<span data-clock-time>${escapeHtml(localTimeLabel)}</span></div>`
             : ''
         }
       </section>
@@ -70,6 +77,19 @@ export function renderHomePage(container, signal) {
       </div>
     </div>
   `;
+
+  const clockEl = container.querySelector('[data-clock-time]');
+  if (clockEl) {
+    const clockTimer = window.setInterval(() => {
+      if (signal.aborted || !clockEl.isConnected) {
+        window.clearInterval(clockTimer);
+        return;
+      }
+      const next = getBrowserTimeLabel(state.lang);
+      if (next) clockEl.textContent = next;
+    }, 15000);
+    signal.addEventListener('abort', () => window.clearInterval(clockTimer));
+  }
 
   const phraseEl = container.querySelector('[data-welcome-phrase]');
   if (phraseEl && phrases.length > 1) {
@@ -190,16 +210,21 @@ export function renderHomePage(container, signal) {
         const trailerBtn = heroShell.querySelector('[data-hero-trailer]');
         trailerBtn?.addEventListener('click', async () => {
           trailerBtn.disabled = true;
+          const ytSearchUrl = getYoutubeSearchUrl(title, year, state.lang);
           try {
             const detail = await tmdbApi.getMovieDetail(spotlight.id, state.lang);
             const trailer = pickOfficialTrailer(detail.videos?.results, state.lang);
-            if (trailer?.key) {
-              openTrailerModal({ youtubeKey: trailer.key, title });
-            } else {
-              navigateTo(`/movie/${spotlight.id}`);
-            }
+            openTrailerModal({
+              youtubeKey: trailer?.key || null,
+              title,
+              youtubeSearchUrl: ytSearchUrl,
+            });
           } catch {
-            navigateTo(`/movie/${spotlight.id}`);
+            openTrailerModal({
+              youtubeKey: null,
+              title,
+              youtubeSearchUrl: ytSearchUrl,
+            });
           } finally {
             trailerBtn.disabled = false;
           }

@@ -242,13 +242,86 @@ function buildDiscoverParams(query) {
   return params;
 }
 
-const YT_ID_RE = /"videoId":"([A-Za-z0-9_-]{11})"/;
+function isTrailerOrTeaser(v) {
+  return v?.site === 'YouTube' && Boolean(v?.key) && (v.type === 'Trailer' || v.type === 'Teaser');
+}
 
-async function findYoutubeTrailerFallback(title, year, language) {
-  if (!title) return null;
-  const isRu = language === 'ru-RU';
-  const suffix = isRu ? 'официальный трейлер русский' : 'official trailer';
-  const q = `${title} ${year || ''} ${suffix}`.trim();
+function parseDurationSeconds(text) {
+  if (!text || typeof text !== 'string') return null;
+  const parts = text.split(':').map((p) => Number(p));
+  if (parts.some((n) => Number.isNaN(n))) return null;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return null;
+}
+
+function pickBestYoutubeFromHtml(html, title, originalTitle) {
+  const startMarker = 'var ytInitialData = ';
+  const idx = html.indexOf(startMarker);
+  if (idx !== -1) {
+    const jsonStart = idx + startMarker.length;
+    const endIdx = html.indexOf(';</script>', jsonStart);
+    if (endIdx !== -1) {
+      try {
+        const data = JSON.parse(html.slice(jsonStart, endIdx));
+        const sections =
+          data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents ||
+          [];
+        const candidates = [];
+        for (const sec of sections) {
+          const items = sec?.itemSectionRenderer?.contents || [];
+          for (const entry of items) {
+            const vr = entry?.videoRenderer;
+            if (!vr?.videoId) continue;
+            const navUrl = vr?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || '';
+            if (navUrl.startsWith('/shorts')) continue;
+            const vTitle = vr?.title?.runs?.map((r) => r.text).join('') || '';
+            const secs = parseDurationSeconds(vr?.lengthText?.simpleText);
+            if (secs !== null && (secs < 25 || secs > 420)) continue;
+            candidates.push({ id: vr.videoId, title: vTitle });
+          }
+        }
+
+        if (candidates.length > 0) {
+          const tLower = (title || '').toLowerCase();
+          const oLower = (originalTitle || '').toLowerCase();
+          const ranked = candidates
+            .map((c, pos) => {
+              const lc = c.title.toLowerCase();
+              let score = 10 - pos * 0.5;
+              if (lc.includes('трейлер') || lc.includes('trailer') || lc.includes('teaser') || lc.includes('тизер')) {
+                score += 12;
+              }
+              if (lc.includes('official') || lc.includes('официальный') || lc.includes('дублированный')) {
+                score += 6;
+              }
+              if (tLower && lc.includes(tLower.slice(0, Math.min(8, tLower.length)))) {
+                score += 6;
+              } else if (oLower && lc.includes(oLower.slice(0, Math.min(8, oLower.length)))) {
+                score += 5;
+              }
+              if (lc.includes('реакция') || lc.includes('разбор') || lc.includes('обзор') || lc.includes('reaction') || lc.includes('review')) {
+                score -= 15;
+              }
+              return { ...c, score };
+            })
+            .sort((a, b) => b.score - a.score);
+          if (ranked[0]?.id) return ranked[0].id;
+        }
+      } catch {
+        // Fallback to regex extraction below
+      }
+    }
+  }
+  const match = html.match(/"videoId":"([A-Za-z0-9_-]{11})"/);
+  return match?.[1] || null;
+}
+
+async function queryYoutubeTrailerId(title, originalTitle, year, isRu) {
+  const searchTitle = isRu ? title || originalTitle : originalTitle || title;
+  if (!searchTitle) return null;
+  const suffix = isRu ? 'официальный трейлер' : 'official trailer';
+  const q = `${searchTitle} ${year || ''} ${suffix}`.trim();
   const cacheKey = `yt_fallback:${q}`;
   const cached = getCached(cacheKey);
   if (cached !== null) return cached;
@@ -268,16 +341,17 @@ async function findYoutubeTrailerFallback(title, year, language) {
     });
     if (!res.ok) return null;
     const html = await res.text();
-    const match = html.match(YT_ID_RE);
-    if (!match?.[1]) return null;
+    const videoId = pickBestYoutubeFromHtml(html, title, originalTitle);
+    if (!videoId) return null;
+
     const fallbackVideo = {
-      id: `yt-fallback-${match[1]}`,
-      key: match[1],
+      id: `yt-fallback-${videoId}`,
+      key: videoId,
       site: 'YouTube',
       type: 'Trailer',
       official: false,
       iso_639_1: isRu ? 'ru' : 'en',
-      name: `${title} — ${isRu ? 'Трейлер' : 'Trailer'}`,
+      name: `${searchTitle} — ${isRu ? 'Трейлер' : 'Trailer'}`,
     };
     setCached(cacheKey, fallbackVideo, 1000 * 60 * 60);
     return fallbackVideo;
@@ -288,11 +362,20 @@ async function findYoutubeTrailerFallback(title, year, language) {
   }
 }
 
+async function findYoutubeTrailerFallback(title, originalTitle, year, language) {
+  const isRu = language === 'ru-RU';
+  const primary = await queryYoutubeTrailerId(title, originalTitle, year, isRu);
+  if (primary) return primary;
+  if (isRu) {
+    return queryYoutubeTrailerId(title, originalTitle, year, false);
+  }
+  return null;
+}
+
 async function enrichVideos(mediaType, id, data, language) {
   let existing = Array.isArray(data.videos?.results) ? data.videos.results : [];
-  const hasYt = existing.some((v) => v.site === 'YouTube' && v.key);
 
-  if (!hasYt) {
+  if (!existing.some(isTrailerOrTeaser)) {
     try {
       const allVideos = await fetchFromTmdb(`/${mediaType}/${id}/videos`, {});
       if (Array.isArray(allVideos?.results) && allVideos.results.length > 0) {
@@ -307,10 +390,11 @@ async function enrichVideos(mediaType, id, data, language) {
     }
   }
 
-  if (!existing.some((v) => v.site === 'YouTube' && v.key)) {
-    const title = data.title || data.name || data.original_title || data.original_name || '';
+  if (!existing.some(isTrailerOrTeaser)) {
+    const title = data.title || data.name || '';
+    const originalTitle = data.original_title || data.original_name || title;
     const year = (data.release_date || data.first_air_date || '').slice(0, 4);
-    const ytFallback = await findYoutubeTrailerFallback(title, year, language);
+    const ytFallback = await findYoutubeTrailerFallback(title, originalTitle, year, language);
     if (ytFallback) {
       existing = [ytFallback, ...existing];
     }

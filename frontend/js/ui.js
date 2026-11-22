@@ -297,9 +297,14 @@ function mountModal({ contentHtml, wide = false, backdropClass = '', dismissible
   return cleanup;
 }
 
-export function openTrailerModal({ youtubeKey, title }) {
+export function openTrailerModal({ youtubeKey, title, youtubeSearchUrl = '' }) {
   const dict = t();
-  const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0&fs=1`;
+  const embedUrl = youtubeKey
+    ? `https://www.youtube.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0&fs=1`
+    : '';
+  const directYtUrl = youtubeKey
+    ? `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeKey)}`
+    : youtubeSearchUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${title || ''} trailer`)}`;
 
   mountModal({
     wide: true,
@@ -310,14 +315,35 @@ export function openTrailerModal({ youtubeKey, title }) {
         <button type="button" class="modal-close-btn" data-close aria-label="${escapeHtml(dict.detail.closeModal)}">${icons.x}</button>
       </div>
       <div class="trailer-frame-wrap" data-trailer-wrap>
-        <iframe src="${embedUrl}" title="${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+        ${
+          embedUrl
+            ? `<iframe src="${embedUrl}" title="${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`
+            : `<div style="width:100%;height:100%;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:#e4e4e7;">
+                <p style="margin:0;max-width:440px;font-size:0.92rem;line-height:1.5;">${escapeHtml(dict.detail.trailerUnavailable)}</p>
+                <a href="${escapeHtml(directYtUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                  ${icons.play}
+                  <span>${escapeHtml(dict.detail.findTrailerOnYoutube)}</span>
+                  ${icons.externalLink}
+                </a>
+              </div>`
+        }
       </div>
       <div class="trailer-hint-bar">
         <span>${escapeHtml(dict.detail.trailerFullscreenTip)}</span>
-        <button type="button" class="btn btn-secondary" data-fullscreen style="height:34px;padding:0 12px;font-size:0.78rem;flex-shrink:0;">
-          ${icons.maximize}
-          <span>${escapeHtml(dict.detail.fullscreenBtn)}</span>
-        </button>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex-shrink:0;">
+          <a href="${escapeHtml(directYtUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:0.78rem;">
+            ${icons.externalLink}
+            <span>${escapeHtml(dict.detail.openOnYoutube)}</span>
+          </a>
+          ${
+            embedUrl
+              ? `<button type="button" class="btn btn-secondary" data-fullscreen style="height:34px;padding:0 12px;font-size:0.78rem;">
+                  ${icons.maximize}
+                  <span>${escapeHtml(dict.detail.fullscreenBtn)}</span>
+                </button>`
+              : ''
+          }
+        </div>
       </div>
     `,
     onMount(panel, cleanup) {

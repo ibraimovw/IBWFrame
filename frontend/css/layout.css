@@ -131,7 +131,7 @@
 }
 
 .nav-link:hover {
-  color: var(--text-primary);
+  color: var(--accent-brand-warm);
 }
 
 .nav-link.is-active {
@@ -185,8 +185,8 @@
 }
 
 .square-toggle-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--accent-brand);
+  color: var(--accent-brand-warm);
+  border-color: var(--accent-brand-warm);
   background-color: var(--bg-surface-elevated);
 }
 
@@ -530,7 +530,7 @@
 }
 
 .footer-links a:hover {
-  color: var(--accent-brand);
+  color: var(--accent-brand-warm);
 }
 
 .footer-bottom {
