@@ -1,6 +1,6 @@
 {
   "rewrites": [
     { "source": "/api/tmdb/(.*)", "destination": "/api/tmdb" },
-    { "source": "/((?!api/|css/|js/|assets/|favicon\.svg).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|css/|js/|assets/|favicon.svg).*)", "destination": "/index.html" }
   ]
 }
