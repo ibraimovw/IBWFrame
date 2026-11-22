@@ -36,7 +36,7 @@ module.exports = (req, res) => {
     return;
   }
 
-  const apiKey = process.env.TMDB_API_KEY || '';
+  const apiKey = (process.env.TMDB_API_KEY || '').trim();
   if (!apiKey || apiKey === 'your_tmdb_api_key_here') {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');

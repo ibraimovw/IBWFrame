@@ -1,0 +1,9 @@
+{
+  "name": "ibwframe",
+  "version": "1.0.0",
+  "description": "IBWFrame — Movie & TV Series Discovery Platform powered by TMDB API",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
