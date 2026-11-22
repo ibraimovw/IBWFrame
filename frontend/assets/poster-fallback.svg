@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" fill="none">
+  <rect width="300" height="450" fill="#171920"/>
+  <rect x="24" y="24" width="252" height="402" rx="12" stroke="#2B303D" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="122" y="185" width="56" height="56" rx="14" stroke="#E12D48" stroke-width="2.5"/>
+  <polygon points="144,202 162,213 144,224" fill="#F5F6F8"/>
+  <text x="150" y="272" text-anchor="middle" fill="#8C93A4" font-family="system-ui, sans-serif" font-size="14" font-weight="600">IBWFrame</text>
+  <text x="150" y="294" text-anchor="middle" fill="#5E6475" font-family="system-ui, sans-serif" font-size="12">No Poster Available</text>
+</svg>
