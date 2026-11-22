@@ -1,9 +1,16 @@
 {
   "name": "ibwframe",
-  "version": "1.2.0",
-  "description": "IBWFrame — Movie & TV Series Discovery Platform powered by TMDB API",
   "private": true,
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "version": "1.0.0",
+  "type": "module",
+  "description": "IBWFrame — international cinema & series discovery platform built with HTML5, CSS3, Vanilla JS, and built-in Node.js.",
+  "scripts": {
+    "dev": "node backend/server.js",
+    "start": "NODE_ENV=production node backend/server.js",
+    "build": "node scripts/build.js",
+    "clean": "rm -rf dist",
+    "lint": "node --check backend/server.js backend/tmdbProxy.js api/index.js scripts/build.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }
