@@ -17,7 +17,34 @@ export const translations = {
       morning: 'Good morning',
       afternoon: 'Good afternoon',
       evening: 'Good evening',
+      night: 'Good night',
       subtitle: 'Discover something extraordinary today.',
+      phrases: {
+        morning: [
+          'Fresh premieres and uplifting cinema to start your morning.',
+          'Grab a coffee and explore top-rated stories for tonight.',
+          'Discover bright new worlds while the day is young.',
+        ],
+        afternoon: [
+          'Global cinema and acclaimed series curated for your afternoon.',
+          'Find something inspiring for a break or your evening watchlist.',
+          'Build your personal collection of timeless favorites.',
+        ],
+        evening: [
+          'Time to dim the lights and dive into the big screen.',
+          'The evening calls for gripping thrillers and bold drama.',
+          'Pick a film by mood or browse tonight’s editorial spotlight.',
+        ],
+        night: [
+          'Late-night screening: neo-noir, mysteries, and hidden gems.',
+          'Quiet midnight hours are made for unforgettable cinema.',
+          'A nocturnal wave of acclaimed films awaits.',
+        ],
+        general: [
+          'Discover something extraordinary today.',
+          'Roll a random pick in Explore or browse Editorial Collections.',
+        ],
+      },
       guestName: 'Cinephile',
       modalTitle: 'Welcome to IBWFrame',
       modalPrompt: 'How should we call you?',
@@ -62,6 +89,7 @@ export const translations = {
       recommendedSubtitlePersonalized: 'Curated from your watched films, favorites, and ratings',
       recommendedSubtitleDefault: 'Acclaimed cinema to start your collection',
       seeAll: 'Explore All',
+      curatedTag: 'Curated',
     },
     catalog: {
       moviesTitle: 'Movies',
@@ -170,6 +198,8 @@ export const translations = {
       recommended: 'Recommended Titles',
       similar: 'More Like This',
       trailerUnavailable: 'No official YouTube trailer is available for this title.',
+      trailerFullscreenTip: 'Tip: tap the fullscreen icon in the bottom-right corner of the player (or press F) for fullscreen.',
+      fullscreenBtn: 'Fullscreen',
       closeModal: 'Close',
       back: 'Back',
     },
@@ -305,7 +335,34 @@ export const translations = {
       morning: 'Доброе утро',
       afternoon: 'Добрый день',
       evening: 'Добрый вечер',
+      night: 'Доброй ночи',
       subtitle: 'Откройте что-то особенное сегодня.',
+      phrases: {
+        morning: [
+          'Свежие премьеры и лёгкое кино для отличного начала дня.',
+          'Утренний кофе и подборка фильмов с высоким рейтингом на вечер.',
+          'Откройте новые киноистории, пока день только начинается.',
+        ],
+        afternoon: [
+          'Лучшие фильмы и сериалы со всего мира — прямо сейчас.',
+          'Вдохновляющее кино для перерыва или планов на вечер.',
+          'Соберите идеальную подборку фильмов на ближайшие выходные.',
+        ],
+        evening: [
+          'Время приглушить свет и погрузиться в большой экран.',
+          'Вечер создан для захватывающих триллеров и сильных драм.',
+          'Выберите фильм по настроению или откройте подборку редакции.',
+        ],
+        night: [
+          'Полуночный сеанс: нео-нуар, загадки и редкие жемчужины кино.',
+          'Тишина ночи идеально подходит для глубоких киноисторий.',
+          'Ночная подборка высоко оценённого кино уже ждёт вас.',
+        ],
+        general: [
+          'Откройте что-то особенное сегодня.',
+          'Доверьте выбор случаю в «Обзоре» или загляните в «Выбор редакции».',
+        ],
+      },
       guestName: 'Киноман',
       modalTitle: 'Добро пожаловать в IBWFrame',
       modalPrompt: 'Как к вам обращаться?',
@@ -350,6 +407,7 @@ export const translations = {
       recommendedSubtitlePersonalized: 'На основе ваших просмотренных фильмов, избранного и оценок',
       recommendedSubtitleDefault: 'Признанное кино для старта вашей коллекции',
       seeAll: 'Смотреть все',
+      curatedTag: 'Подборка',
     },
     catalog: {
       moviesTitle: 'Фильмы',
@@ -458,6 +516,8 @@ export const translations = {
       recommended: 'Рекомендуемые',
       similar: 'Похожие',
       trailerUnavailable: 'Официальный YouTube-трейлер для этого названия недоступен.',
+      trailerFullscreenTip: 'Подсказка: нажмите значок полноэкранного режима в правом нижнем углу плеера (или клавишу F), чтобы смотреть на весь экран.',
+      fullscreenBtn: 'На весь экран',
       closeModal: 'Закрыть',
       back: 'Назад',
     },
@@ -598,3 +658,65 @@ export function setDocumentLang(lang) {
 export function getT(lang) {
   return translations[lang] || translations.en;
 }
+
+const DEPARTMENT_RU = {
+  Acting: 'Актёрское мастерство',
+  Actors: 'Актёрское мастерство',
+  Directing: 'Режиссура',
+  Writing: 'Сценарий',
+  Production: 'Продюсирование',
+  Camera: 'Операторская работа',
+  Editing: 'Монтаж',
+  Sound: 'Звук и музыка',
+  Art: 'Художник-постановщик',
+  'Visual Effects': 'Визуальные эффекты',
+  'Costume & Make-Up': 'Костюмы и грим',
+  Crew: 'Съёмочная группа',
+  Lighting: 'Освещение',
+  Creator: 'Создатель',
+};
+
+const JOB_RU = {
+  Director: 'Режиссёр',
+  Producer: 'Продюсер',
+  'Executive Producer': 'Исполнительный продюсер',
+  Screenplay: 'Сценарий',
+  Writer: 'Сценарист',
+  Story: 'Сюжет',
+  'Director of Photography': 'Оператор-постановщик',
+  'Original Music Composer': 'Композитор',
+  Editor: 'Монтажёр',
+  'Production Design': 'Художник-постановщик',
+  Creator: 'Создатель',
+};
+
+const STATUS_RU = {
+  Released: 'Вышел в прокат',
+  'Returning Series': 'Продолжается',
+  Ended: 'Завершён',
+  'In Production': 'В производстве',
+  'Post Production': 'Постпродакшн',
+  Planned: 'Запланирован',
+  Canceled: 'Отменён',
+  Rumored: 'Слухи',
+  Pilot: 'Пилот',
+};
+
+export function translateDepartment(dept, lang) {
+  if (!dept) return '';
+  if (lang !== 'ru') return dept;
+  return DEPARTMENT_RU[dept] || dept;
+}
+
+export function translateJob(job, lang) {
+  if (!job) return '';
+  if (lang !== 'ru') return job;
+  return JOB_RU[job] || job;
+}
+
+export function translateStatus(status, lang) {
+  if (!status) return '';
+  if (lang !== 'ru') return status;
+  return STATUS_RU[status] || status;
+}
+

@@ -1,4 +1,5 @@
 import { getImageUrl, getMediaTitle, tmdbApi } from './api.js';
+import { translateDepartment } from './i18n.js';
 import { icons } from './icons.js';
 import { state, t } from './store.js';
 import {
@@ -53,9 +54,14 @@ export function renderPeoplePage(container, outerSignal) {
       btn.className = `tab-btn ${roleTab === tabKey ? 'is-active' : ''}`;
       btn.textContent = tabKey === 'actors' ? dict.people.actorsTab : dict.people.directorsTab;
       btn.addEventListener('click', () => {
+        if (roleTab === tabKey) return;
         roleTab = tabKey;
         renderRoleTabs();
-        renderGrid();
+        if (!query.trim()) {
+          loadPeople();
+        } else {
+          renderGrid();
+        }
       });
       roleTabsEl.appendChild(btn);
     }
@@ -74,13 +80,14 @@ export function renderPeoplePage(container, outerSignal) {
 
     const trimmed = query.trim();
     const list = trimmed
-      ? people
-      : people.filter((p) => {
+      ? people.filter((p) => {
           const dept = (p.known_for_department || '').toLowerCase();
-          return roleTab === 'directors' ? dept === 'directing' : dept !== 'directing';
-        });
+          if (roleTab === 'directors') return dept === 'directing';
+          return dept === 'acting' || dept === 'actors' || dept === '';
+        })
+      : people;
 
-    const displayList = list.length > 0 ? list : people;
+    const displayList = trimmed && list.length === 0 ? people : list;
     if (displayList.length === 0) {
       gridEl.appendChild(
         createEmptyState({
@@ -95,6 +102,7 @@ export function renderPeoplePage(container, outerSignal) {
     grid.className = 'poster-grid';
     for (const person of displayList) {
       const photo = getImageUrl(person.profile_path, 'w342');
+      const deptLabel = translateDepartment(person.known_for_department || '', state.lang);
       const known = (person.known_for || []).slice(0, 2).map((k) => getMediaTitle(k)).join(', ');
       const card = document.createElement('article');
       card.className = 'person-mini-card';
@@ -110,7 +118,7 @@ export function renderPeoplePage(container, outerSignal) {
         </div>
         <div class="person-mini-body">
           <div class="person-mini-name">${escapeHtml(person.name || '')}</div>
-          <div class="person-mini-role">${escapeHtml(person.known_for_department || '')}</div>
+          ${deptLabel ? `<div class="person-mini-role">${escapeHtml(deptLabel)}</div>` : ''}
           ${known ? `<div class="person-mini-role">${escapeHtml(known)}</div>` : ''}
         </div>
       `;
@@ -139,6 +147,9 @@ export function renderPeoplePage(container, outerSignal) {
       if (trimmed.length >= 2) {
         const res = await tmdbApi.search('person', trimmed, state.lang, 1, signal);
         people = res.results || [];
+      } else if (roleTab === 'directors') {
+        const res = await tmdbApi.getDirectors(state.lang, signal);
+        people = res.results || [];
       } else {
         const [p1, p2] = await Promise.all([
           tmdbApi.getPopularPeople(state.lang, 1, signal),
@@ -148,7 +159,8 @@ export function renderPeoplePage(container, outerSignal) {
         people = [...(p1.results || []), ...(p2.results || [])].filter((p) => {
           if (seen.has(p.id)) return false;
           seen.add(p.id);
-          return true;
+          const dept = (p.known_for_department || '').toLowerCase();
+          return dept === 'acting' || dept === 'actors' || dept === '';
         });
       }
     } catch (err) {
@@ -247,7 +259,7 @@ export function renderPersonDetailPage(container, id, outerSignal) {
                 <h1 class="detail-title" style="margin-top:0;">${escapeHtml(person.name || '')}</h1>
                 ${
                   person.known_for_department
-                    ? `<p style="margin:6px 0 0;font-size:0.875rem;font-weight:700;color:var(--accent-red);">${escapeHtml(dict.people.knownFor)}: ${escapeHtml(person.known_for_department)}</p>`
+                    ? `<p style="margin:6px 0 0;font-size:0.875rem;font-weight:700;color:var(--accent-brand);">${escapeHtml(dict.people.knownFor)}: ${escapeHtml(translateDepartment(person.known_for_department, state.lang))}</p>`
                     : ''
                 }
 

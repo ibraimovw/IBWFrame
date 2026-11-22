@@ -1,4 +1,4 @@
-import { tmdbApi } from './api.js';
+import { getImageUrl, tmdbApi } from './api.js';
 import { EDITORIAL_COLLECTIONS } from './editorial.js';
 import { icons } from './icons.js';
 import {
@@ -95,9 +95,10 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
           </button>
         </div>
 
-        <div class="editorial-card ${editorial.toneClass}" style="min-height:auto;cursor:default;">
-          <h1 class="editorial-card-title" style="font-size:2rem;">${escapeHtml(state.lang === 'ru' ? editorial.titleRu : editorial.titleEn)}</h1>
-          <p class="editorial-card-desc" style="font-size:0.95rem;max-width:680px;">${escapeHtml(state.lang === 'ru' ? editorial.descRu : editorial.descEn)}</p>
+        <div class="editorial-banner-hero">
+          <div class="editorial-compact-tag" style="margin-bottom:6px;">${escapeHtml(dict.home.curatedTag)}</div>
+          <h1 class="page-title" style="margin:0;">${escapeHtml(state.lang === 'ru' ? editorial.titleRu : editorial.titleEn)}</h1>
+          <p class="page-subtitle" style="max-width:680px;">${escapeHtml(state.lang === 'ru' ? editorial.descRu : editorial.descEn)}</p>
         </div>
 
         <div id="editorial-items-slot"></div>
@@ -234,7 +235,7 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
 
       <section>
         <h2 class="section-title" style="margin-bottom:16px;">${escapeHtml(dict.collections.editorialTab)}</h2>
-        <div class="cards-grid-3" id="editorial-list"></div>
+        <div class="editorial-compact-grid" id="editorial-list"></div>
       </section>
 
       <section>
@@ -250,17 +251,46 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
   for (const col of EDITORIAL_COLLECTIONS) {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = `editorial-card ${col.toneClass}`;
+    card.className = 'editorial-card-compact';
+    card.setAttribute('data-ed-slug', col.slug);
     card.innerHTML = `
-      <div>
-        <h3 class="editorial-card-title">${escapeHtml(state.lang === 'ru' ? col.titleRu : col.titleEn)}</h3>
-        <p class="editorial-card-desc">${escapeHtml(state.lang === 'ru' ? col.descRu : col.descEn)}</p>
+      <div class="editorial-poster-fan" data-fan>
+        <div class="editorial-mini-poster pos-0"></div>
+        <div class="editorial-mini-poster pos-1"></div>
+        <div class="editorial-mini-poster pos-2"></div>
       </div>
-      <div class="editorial-card-cta"><span>${escapeHtml(dict.home.seeAll)}</span>${icons.arrowRight}</div>
+      <div class="editorial-compact-body">
+        <span class="editorial-compact-tag">${escapeHtml(dict.home.curatedTag)}</span>
+        <h3 class="editorial-compact-title">${escapeHtml(state.lang === 'ru' ? col.titleRu : col.titleEn)}</h3>
+        <p class="editorial-compact-desc">${escapeHtml(state.lang === 'ru' ? col.descRu : col.descEn)}</p>
+      </div>
+      <span class="editorial-compact-arrow">${icons.arrowRight}</span>
     `;
     card.addEventListener('click', () => navigateTo(`/collections/${col.slug}`));
     edList.appendChild(card);
   }
+
+  Promise.allSettled(
+    EDITORIAL_COLLECTIONS.map((col) =>
+      tmdbApi.discover('movie', col.discoverParams, state.lang, outerSignal)
+    )
+  ).then((results) => {
+    if (outerSignal?.aborted) return;
+    results.forEach((res, idx) => {
+      if (res.status !== 'fulfilled') return;
+      const col = EDITORIAL_COLLECTIONS[idx];
+      const fanEl = edList.querySelector(`[data-ed-slug="${col.slug}"] [data-fan]`);
+      if (!fanEl) return;
+      const moviesWithPosters = (res.value?.results || []).filter((m) => Boolean(m.poster_path)).slice(0, 3);
+      const slots = fanEl.querySelectorAll('.editorial-mini-poster');
+      moviesWithPosters.forEach((m, slotIdx) => {
+        const url = getImageUrl(m.poster_path, 'w185');
+        if (url && slots[slotIdx]) {
+          slots[slotIdx].innerHTML = `<img src="${escapeHtml(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+        }
+      });
+    });
+  });
 
   const customList = container.querySelector('#custom-list');
   if (state.customCollections.length === 0) {

@@ -1,5 +1,6 @@
 import { getImageUrl, getMediaTitle, getMediaYear, pickOfficialTrailer, tmdbApi } from './api.js';
 import { WATCH_REGIONS } from './editorial.js';
+import { translateJob, translateStatus } from './i18n.js';
 import { icons } from './icons.js';
 import {
   getUserRating,
@@ -67,7 +68,7 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
       const countries = (detail.production_countries || []).map((c) => c.name).filter(Boolean);
       const posterUrl = getImageUrl(detail.poster_path, 'w500');
       const backdropUrl = getImageUrl(detail.backdrop_path, 'w1280');
-      const officialTrailer = pickOfficialTrailer(detail.videos?.results);
+      const officialTrailer = pickOfficialTrailer(detail.videos?.results, state.lang);
 
       const cast = (detail.credits?.cast || []).slice(0, 12);
       const director = isMovie
@@ -254,7 +255,7 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
                             .map(
                               (c) => `
                               <div>
-                                <div class="info-row-label">${escapeHtml(c.job)}</div>
+                                <div class="info-row-label">${escapeHtml(translateJob(c.job, state.lang))}</div>
                                 <button type="button" class="section-link" data-person-id="${c.id}" style="font-size:0.875rem;padding:2px 0;">${escapeHtml(c.name)}</button>
                               </div>
                             `
@@ -274,7 +275,7 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
                     </div>
                     ${
                       detail.status
-                        ? `<div><div class="info-row-label">${escapeHtml(dict.detail.status)}</div><div class="info-row-val">${escapeHtml(detail.status)}</div></div>`
+                        ? `<div><div class="info-row-label">${escapeHtml(dict.detail.status)}</div><div class="info-row-val">${escapeHtml(translateStatus(detail.status, state.lang))}</div></div>`
                         : ''
                     }
                     ${

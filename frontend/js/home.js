@@ -11,26 +11,58 @@ import {
   openTrailerModal,
 } from './ui.js';
 
-function getGreeting(dict) {
+function getTimePeriod() {
   const hour = new Date().getHours();
-  if (hour < 12) return dict.welcome.morning;
-  if (hour < 18) return dict.welcome.afternoon;
-  return dict.welcome.evening;
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 18) return 'afternoon';
+  if (hour >= 18 && hour < 23) return 'evening';
+  return 'night';
+}
+
+function getGreeting(dict, period) {
+  return dict.welcome[period] || dict.welcome.evening;
+}
+
+function getPhraseSequence(dict, period) {
+  const timeList = dict.welcome.phrases?.[period] || [];
+  const generalList = dict.welcome.phrases?.general || [];
+  const combined = [...timeList, ...generalList].filter(Boolean);
+  return combined.length > 0 ? combined : [dict.welcome.subtitle];
+}
+
+function getBrowserTimeLabel(lang) {
+  try {
+    return new Date().toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
 }
 
 export function renderHomePage(container, signal) {
   const dict = t();
   const displayName = state.profile.name || dict.welcome.guestName;
+  const period = getTimePeriod();
+  const phrases = getPhraseSequence(dict, period);
+  let phraseIdx = Math.floor(Math.random() * phrases.length);
+  const localTimeLabel = getBrowserTimeLabel(state.lang);
 
   container.innerHTML = `
     <div class="container page-stack page-enter">
       <section class="welcome-banner">
         <div>
           <h1 class="welcome-title">
-            ${escapeHtml(getGreeting(dict))}, <span class="welcome-name">${escapeHtml(displayName)}</span>
+            ${escapeHtml(getGreeting(dict, period))}, <span class="welcome-name">${escapeHtml(displayName)}</span>
           </h1>
-          <p class="page-subtitle">${escapeHtml(dict.welcome.subtitle)}</p>
+          <p class="page-subtitle welcome-phrase" data-welcome-phrase>${escapeHtml(phrases[phraseIdx])}</p>
         </div>
+        ${
+          localTimeLabel
+            ? `<div class="welcome-time-badge tabular-nums">${icons.compass}<span>${escapeHtml(localTimeLabel)}</span></div>`
+            : ''
+        }
       </section>
 
       <div id="home-body" style="display:flex;flex-direction:column;gap:40px;">
@@ -38,6 +70,25 @@ export function renderHomePage(container, signal) {
       </div>
     </div>
   `;
+
+  const phraseEl = container.querySelector('[data-welcome-phrase]');
+  if (phraseEl && phrases.length > 1) {
+    const intervalId = window.setInterval(() => {
+      if (signal.aborted || !phraseEl.isConnected) {
+        window.clearInterval(intervalId);
+        return;
+      }
+      phraseEl.classList.add('is-switching');
+      window.setTimeout(() => {
+        if (signal.aborted || !phraseEl.isConnected) return;
+        phraseIdx = (phraseIdx + 1) % phrases.length;
+        phraseEl.textContent = phrases[phraseIdx];
+        phraseEl.classList.remove('is-switching');
+      }, 260);
+    }, 5200);
+
+    signal.addEventListener('abort', () => window.clearInterval(intervalId));
+  }
 
   const bodyEl = container.querySelector('#home-body');
 
@@ -81,57 +132,67 @@ export function renderHomePage(container, signal) {
       if (signal.aborted) return;
       bodyEl.innerHTML = '';
 
-      // 1. Featured Movie Spotlight (single film, no slider)
+      // 1. Featured Movie Spotlight with Poster-Matched Ambient Shadow
       if (spotlight) {
-        const heroEl = document.createElement('section');
-        heroEl.className = 'hero-spotlight';
+        const heroShell = document.createElement('div');
+        heroShell.className = 'hero-spotlight-shell';
+
         const backdropUrl = getImageUrl(spotlight.backdrop_path, 'w1280');
+        const posterUrl = getImageUrl(spotlight.poster_path, 'w500');
+        const shadowImgUrl = posterUrl || backdropUrl;
         const title = getMediaTitle(spotlight);
         const year = getMediaYear(spotlight);
         const rating = spotlight.vote_average > 0 ? spotlight.vote_average.toFixed(1) : null;
 
-        heroEl.innerHTML = `
+        heroShell.innerHTML = `
           ${
-            backdropUrl
-              ? `<img src="${escapeHtml(backdropUrl)}" alt="${escapeHtml(title)}" referrerpolicy="no-referrer" class="hero-backdrop-img" />`
+            shadowImgUrl
+              ? `<img src="${escapeHtml(shadowImgUrl)}" alt="" aria-hidden="true" referrerpolicy="no-referrer" class="hero-ambient-shadow" />`
               : ''
           }
-          <div class="hero-gradient"></div>
-          <div class="hero-content">
-            <div class="hero-kicker">${escapeHtml(dict.home.featuredBadge)}</div>
-            <h2 class="hero-title">${escapeHtml(title)}</h2>
-            <div class="hero-meta tabular-nums">
-              ${year ? `<span>${escapeHtml(year)}</span>` : ''}
-              ${
-                rating
-                  ? `<span class="hero-rating">${icons.star}<span>${rating}</span></span>`
-                  : ''
-              }
+          <section class="hero-spotlight">
+            ${
+              backdropUrl
+                ? `<img src="${escapeHtml(backdropUrl)}" alt="${escapeHtml(title)}" referrerpolicy="no-referrer" class="hero-backdrop-img" />`
+                : ''
+            }
+            <div class="hero-gradient"></div>
+            <div class="hero-content">
+              <div class="hero-kicker">${escapeHtml(dict.home.featuredBadge)}</div>
+              <h2 class="hero-title">${escapeHtml(title)}</h2>
+              <div class="hero-meta tabular-nums">
+                ${year ? `<span>${escapeHtml(year)}</span>` : ''}
+                ${
+                  rating
+                    ? `<span class="hero-rating">${icons.star}<span>${rating}</span></span>`
+                    : ''
+                }
+              </div>
+              ${spotlight.overview ? `<p class="hero-overview">${escapeHtml(spotlight.overview)}</p>` : ''}
+              <div class="hero-actions">
+                <button type="button" class="btn btn-primary" data-hero-trailer>
+                  ${icons.play}
+                  <span>${escapeHtml(dict.home.watchTrailer)}</span>
+                </button>
+                <button type="button" class="btn btn-hero-glass" data-hero-details>
+                  ${icons.info}
+                  <span>${escapeHtml(dict.home.moreDetails)}</span>
+                </button>
+              </div>
             </div>
-            ${spotlight.overview ? `<p class="hero-overview">${escapeHtml(spotlight.overview)}</p>` : ''}
-            <div class="hero-actions">
-              <button type="button" class="btn btn-primary" data-hero-trailer>
-                ${icons.play}
-                <span>${escapeHtml(dict.home.watchTrailer)}</span>
-              </button>
-              <button type="button" class="btn btn-hero-glass" data-hero-details>
-                ${icons.info}
-                <span>${escapeHtml(dict.home.moreDetails)}</span>
-              </button>
-            </div>
-          </div>
+          </section>
         `;
 
-        heroEl.querySelector('[data-hero-details]')?.addEventListener('click', () => {
+        heroShell.querySelector('[data-hero-details]')?.addEventListener('click', () => {
           navigateTo(`/movie/${spotlight.id}`);
         });
 
-        const trailerBtn = heroEl.querySelector('[data-hero-trailer]');
+        const trailerBtn = heroShell.querySelector('[data-hero-trailer]');
         trailerBtn?.addEventListener('click', async () => {
           trailerBtn.disabled = true;
           try {
             const detail = await tmdbApi.getMovieDetail(spotlight.id, state.lang);
-            const trailer = pickOfficialTrailer(detail.videos?.results);
+            const trailer = pickOfficialTrailer(detail.videos?.results, state.lang);
             if (trailer?.key) {
               openTrailerModal({ youtubeKey: trailer.key, title });
             } else {
@@ -144,7 +205,7 @@ export function renderHomePage(container, signal) {
           }
         });
 
-        bodyEl.appendChild(heroEl);
+        bodyEl.appendChild(heroShell);
       }
 
       // 2. Trending Now
@@ -229,7 +290,8 @@ export function renderHomePage(container, signal) {
         bodyEl.appendChild(genreSection);
       }
 
-      // 8. Editor's Choice
+      // 8. Editor's Choice (Compact Visual Cards with Mini Poster Fans)
+      const featuredCollections = EDITORIAL_COLLECTIONS.slice(0, 3);
       const editorsSection = document.createElement('section');
       editorsSection.innerHTML = `
         <div class="section-header">
@@ -239,30 +301,56 @@ export function renderHomePage(container, signal) {
             ${icons.arrowRight}
           </button>
         </div>
-        <div class="cards-grid-3"></div>
+        <div class="editorial-compact-grid"></div>
       `;
       editorsSection.querySelector('[data-all-collections]')?.addEventListener('click', () => {
         navigateTo('/collections');
       });
-      const edGrid = editorsSection.querySelector('.cards-grid-3');
-      for (const col of EDITORIAL_COLLECTIONS.slice(0, 3)) {
+      const edGrid = editorsSection.querySelector('.editorial-compact-grid');
+      for (const col of featuredCollections) {
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = `editorial-card ${col.toneClass}`;
+        card.className = 'editorial-card-compact';
+        card.setAttribute('data-ed-slug', col.slug);
         card.innerHTML = `
-          <div>
-            <h3 class="editorial-card-title">${escapeHtml(state.lang === 'ru' ? col.titleRu : col.titleEn)}</h3>
-            <p class="editorial-card-desc">${escapeHtml(state.lang === 'ru' ? col.descRu : col.descEn)}</p>
+          <div class="editorial-poster-fan" data-fan>
+            <div class="editorial-mini-poster pos-0"></div>
+            <div class="editorial-mini-poster pos-1"></div>
+            <div class="editorial-mini-poster pos-2"></div>
           </div>
-          <div class="editorial-card-cta">
-            <span>${escapeHtml(dict.home.seeAll)}</span>
-            ${icons.arrowRight}
+          <div class="editorial-compact-body">
+            <span class="editorial-compact-tag">${escapeHtml(dict.home.curatedTag)}</span>
+            <h3 class="editorial-compact-title">${escapeHtml(state.lang === 'ru' ? col.titleRu : col.titleEn)}</h3>
+            <p class="editorial-compact-desc">${escapeHtml(state.lang === 'ru' ? col.descRu : col.descEn)}</p>
           </div>
+          <span class="editorial-compact-arrow">${icons.arrowRight}</span>
         `;
         card.addEventListener('click', () => navigateTo(`/collections/${col.slug}`));
         edGrid.appendChild(card);
       }
       bodyEl.appendChild(editorsSection);
+
+      Promise.allSettled(
+        featuredCollections.map((col) =>
+          tmdbApi.discover('movie', col.discoverParams, state.lang, signal)
+        )
+      ).then((results) => {
+        if (signal.aborted) return;
+        results.forEach((res, idx) => {
+          if (res.status !== 'fulfilled') return;
+          const col = featuredCollections[idx];
+          const fanEl = edGrid.querySelector(`[data-ed-slug="${col.slug}"] [data-fan]`);
+          if (!fanEl) return;
+          const moviesWithPosters = (res.value?.results || []).filter((m) => Boolean(m.poster_path)).slice(0, 3);
+          const slots = fanEl.querySelectorAll('.editorial-mini-poster');
+          moviesWithPosters.forEach((m, slotIdx) => {
+            const url = getImageUrl(m.poster_path, 'w185');
+            if (url && slots[slotIdx]) {
+              slots[slotIdx].innerHTML = `<img src="${escapeHtml(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`;
+            }
+          });
+        });
+      });
 
       // 9. Recommended for You
       if (recs.items.length > 0) {

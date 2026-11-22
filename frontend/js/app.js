@@ -1,5 +1,6 @@
 import { renderCollectionsPage, renderLibraryPage } from './collections.js';
 import { renderDetailPage } from './detail.js';
+import { initInteractiveEffects } from './effects.js';
 import { renderExplorePage } from './explore.js';
 import { renderHomePage } from './home.js';
 import { icons } from './icons.js';
@@ -318,6 +319,7 @@ function initBackToTop() {
 function bootstrap() {
   initToastSystem();
   initBackToTop();
+  initInteractiveEffects();
 
   routerInstance = createRouter(renderCurrentRoute);
   setNavigator((path) => routerInstance.navigate(path));

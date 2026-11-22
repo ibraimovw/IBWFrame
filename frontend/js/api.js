@@ -143,6 +143,11 @@ export const tmdbApi = {
     return requestJson(`/api/tmdb/person/popular?${qs}`, signal);
   },
 
+  getDirectors(lang, signal) {
+    const qs = buildQuery({ language: toTmdbLang(lang) });
+    return requestJson(`/api/tmdb/person/directors?${qs}`, signal);
+  },
+
   getPersonDetail(id, lang, signal) {
     const qs = buildQuery({ language: toTmdbLang(lang) });
     return requestJson(`/api/tmdb/person/${id}?${qs}`, signal);
@@ -154,15 +159,31 @@ export const tmdbApi = {
   },
 };
 
-export function pickOfficialTrailer(videos) {
+function selectBestVideo(list) {
+  if (!list || list.length === 0) return null;
+  return (
+    list.find((v) => v.type === 'Trailer' && v.official) ||
+    list.find((v) => v.type === 'Trailer') ||
+    list.find((v) => v.type === 'Teaser') ||
+    list[0]
+  );
+}
+
+export function pickOfficialTrailer(videos, lang = 'en') {
   if (!videos || videos.length === 0) return null;
   const yt = videos.filter((v) => v.site === 'YouTube' && Boolean(v.key));
   if (yt.length === 0) return null;
 
-  return (
-    yt.find((v) => v.type === 'Trailer' && v.official) ||
-    yt.find((v) => v.type === 'Trailer') ||
-    yt.find((v) => v.type === 'Teaser') ||
-    yt[0]
-  );
+  const targetLang = lang === 'ru' ? 'ru' : 'en';
+  const langMatches = yt.filter((v) => (v.iso_639_1 || '').toLowerCase() === targetLang);
+  if (langMatches.length > 0) {
+    return selectBestVideo(langMatches);
+  }
+
+  const enMatches = yt.filter((v) => (v.iso_639_1 || '').toLowerCase() === 'en');
+  if (enMatches.length > 0) {
+    return selectBestVideo(enMatches);
+  }
+
+  return selectBestVideo(yt);
 }

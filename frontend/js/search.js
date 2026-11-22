@@ -1,4 +1,5 @@
 import { getImageUrl, getMediaTitle, getMediaYear, tmdbApi } from './api.js';
+import { translateDepartment } from './i18n.js';
 import { icons } from './icons.js';
 import { loadLastSearch, saveLastSearch } from './storage.js';
 import { state, t } from './store.js';
@@ -125,7 +126,7 @@ export function renderSearchPage(container, outerSignal) {
           </div>
           <div class="person-mini-body">
             <div class="person-mini-name">${escapeHtml(item.name || '')}</div>
-            <div class="person-mini-role">${escapeHtml(item.known_for_department || dict.search.personBadge)}</div>
+            <div class="person-mini-role">${escapeHtml(translateDepartment(item.known_for_department, state.lang) || dict.search.personBadge)}</div>
           </div>
         `;
         pCard.addEventListener('click', () => navigateTo(`/person/${item.id}`));

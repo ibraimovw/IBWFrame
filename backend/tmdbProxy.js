@@ -242,6 +242,138 @@ function buildDiscoverParams(query) {
   return params;
 }
 
+const YT_ID_RE = /"videoId":"([A-Za-z0-9_-]{11})"/;
+
+async function findYoutubeTrailerFallback(title, year, language) {
+  if (!title) return null;
+  const isRu = language === 'ru-RU';
+  const suffix = isRu ? 'официальный трейлер русский' : 'official trailer';
+  const q = `${title} ${year || ''} ${suffix}`.trim();
+  const cacheKey = `yt_fallback:${q}`;
+  const cached = getCached(cacheKey);
+  if (cached !== null) return cached;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': isRu ? 'ru-RU,ru;q=0.9,en;q=0.8' : 'en-US,en;q=0.9',
+        Cookie: 'CONSENT=YES+cb; SOCS=CAI',
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const match = html.match(YT_ID_RE);
+    if (!match?.[1]) return null;
+    const fallbackVideo = {
+      id: `yt-fallback-${match[1]}`,
+      key: match[1],
+      site: 'YouTube',
+      type: 'Trailer',
+      official: false,
+      iso_639_1: isRu ? 'ru' : 'en',
+      name: `${title} — ${isRu ? 'Трейлер' : 'Trailer'}`,
+    };
+    setCached(cacheKey, fallbackVideo, 1000 * 60 * 60);
+    return fallbackVideo;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function enrichVideos(mediaType, id, data, language) {
+  let existing = Array.isArray(data.videos?.results) ? data.videos.results : [];
+  const hasYt = existing.some((v) => v.site === 'YouTube' && v.key);
+
+  if (!hasYt) {
+    try {
+      const allVideos = await fetchFromTmdb(`/${mediaType}/${id}/videos`, {});
+      if (Array.isArray(allVideos?.results) && allVideos.results.length > 0) {
+        const seenKeys = new Set(existing.map((v) => v.key));
+        existing = [
+          ...existing,
+          ...allVideos.results.filter((v) => v.key && !seenKeys.has(v.key)),
+        ];
+      }
+    } catch {
+      // Ignore secondary video lookup errors
+    }
+  }
+
+  if (!existing.some((v) => v.site === 'YouTube' && v.key)) {
+    const title = data.title || data.name || data.original_title || data.original_name || '';
+    const year = (data.release_date || data.first_air_date || '').slice(0, 4);
+    const ytFallback = await findYoutubeTrailerFallback(title, year, language);
+    if (ytFallback) {
+      existing = [ytFallback, ...existing];
+    }
+  }
+
+  data.videos = { results: existing };
+}
+
+async function fetchPopularDirectors(language) {
+  const cacheKey = `directors:${language}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  const [popMovies, topMovies] = await Promise.all([
+    fetchFromTmdb('/movie/popular', { language, page: 1 }),
+    fetchFromTmdb('/movie/top_rated', { language, page: 1 }),
+  ]);
+
+  const movieMap = new Map();
+  for (const m of [...(popMovies.results || []), ...(topMovies.results || [])]) {
+    if (m?.id && !movieMap.has(m.id)) {
+      movieMap.set(m.id, m);
+    }
+  }
+
+  const sampleMovies = Array.from(movieMap.values()).slice(0, 18);
+  const creditsResults = await Promise.allSettled(
+    sampleMovies.map((m) => fetchFromTmdb(`/movie/${m.id}/credits`, { language }))
+  );
+
+  const directorsMap = new Map();
+  creditsResults.forEach((result, idx) => {
+    if (result.status !== 'fulfilled') return;
+    const movie = sampleMovies[idx];
+    const crew = result.value?.crew || [];
+    for (const member of crew) {
+      if (member.job !== 'Director' || !member.id) continue;
+      if (!directorsMap.has(member.id)) {
+        directorsMap.set(member.id, {
+          id: member.id,
+          name: member.name,
+          profile_path: member.profile_path || null,
+          known_for_department: 'Directing',
+          popularity: member.popularity || 0,
+          known_for: movie ? [movie] : [],
+        });
+      } else {
+        const existing = directorsMap.get(member.id);
+        if (movie && existing.known_for.length < 3 && !existing.known_for.some((k) => k.id === movie.id)) {
+          existing.known_for.push(movie);
+        }
+      }
+    }
+  });
+
+  const directors = Array.from(directorsMap.values()).sort(
+    (a, b) => (b.popularity || 0) - (a.popularity || 0)
+  );
+  const payload = { page: 1, results: directors, total_pages: 1, total_results: directors.length };
+  setCached(cacheKey, payload);
+  return payload;
+}
+
 /**
  * Pure Node.js request handler for /api/* routes (used by both local HTTP server and Vercel).
  */
@@ -386,6 +518,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
           // Ignore fallback errors
         }
       }
+      await enrichVideos('movie', id, data, language);
       sendJson(res, 200, data);
       return;
     }
@@ -415,6 +548,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
           // Ignore fallback errors
         }
       }
+      await enrichVideos('tv', id, data, language);
       sendJson(res, 200, data);
       return;
     }
@@ -425,6 +559,13 @@ export async function handleApiRequest(req, res, parsedUrl) {
         language: sanitizeLanguage(query.language),
         page: sanitizePage(query.page),
       });
+      sendJson(res, 200, data);
+      return;
+    }
+
+    // /api/tmdb/person/directors
+    if (segments[0] === 'person' && segments[1] === 'directors' && segments.length === 2) {
+      const data = await fetchPopularDirectors(sanitizeLanguage(query.language));
       sendJson(res, 200, data);
       return;
     }

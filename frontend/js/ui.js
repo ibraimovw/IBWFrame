@@ -261,12 +261,12 @@ function closeModalRoot() {
   if (root) root.innerHTML = '';
 }
 
-function mountModal({ contentHtml, wide = false, dismissible = true, onMount }) {
+function mountModal({ contentHtml, wide = false, backdropClass = '', dismissible = true, onMount }) {
   const root = document.getElementById('modal-root');
   if (!root) return closeModalRoot;
 
   root.innerHTML = `
-    <div class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-backdrop ${backdropClass}" role="dialog" aria-modal="true">
       <div class="modal-panel ${wide ? 'modal-panel-wide' : ''}">
         ${contentHtml}
       </div>
@@ -299,21 +299,65 @@ function mountModal({ contentHtml, wide = false, dismissible = true, onMount }) 
 
 export function openTrailerModal({ youtubeKey, title }) {
   const dict = t();
-  const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0`;
+  const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0&fs=1`;
 
   mountModal({
     wide: true,
+    backdropClass: 'is-trailer-backdrop',
     contentHtml: `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #27272a;color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #27272a;color:#fff;">
         <h3 style="margin:0;font-size:1rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(title)}</h3>
         <button type="button" class="modal-close-btn" data-close aria-label="${escapeHtml(dict.detail.closeModal)}">${icons.x}</button>
       </div>
-      <div class="trailer-frame-wrap">
-        <iframe src="${embedUrl}" title="${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      <div class="trailer-frame-wrap" data-trailer-wrap>
+        <iframe src="${embedUrl}" title="${escapeHtml(title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+      </div>
+      <div class="trailer-hint-bar">
+        <span>${escapeHtml(dict.detail.trailerFullscreenTip)}</span>
+        <button type="button" class="btn btn-secondary" data-fullscreen style="height:34px;padding:0 12px;font-size:0.78rem;flex-shrink:0;">
+          ${icons.maximize}
+          <span>${escapeHtml(dict.detail.fullscreenBtn)}</span>
+        </button>
       </div>
     `,
     onMount(panel, cleanup) {
-      panel.querySelector('[data-close]')?.addEventListener('click', cleanup);
+      const wrap = panel.querySelector('[data-trailer-wrap]');
+      const iframe = wrap?.querySelector('iframe');
+      const requestFs = () => {
+        const target = iframe || wrap;
+        if (!target) return;
+        const fn =
+          target.requestFullscreen ||
+          target.webkitRequestFullscreen ||
+          target.mozRequestFullScreen ||
+          target.msRequestFullscreen;
+        if (fn) {
+          try {
+            fn.call(target);
+          } catch {
+            // Fullscreen may be restricted in nested iframes
+          }
+        }
+      };
+
+      const onKeyF = (e) => {
+        if (!panel.isConnected) {
+          document.removeEventListener('keydown', onKeyF);
+          return;
+        }
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          requestFs();
+        }
+      };
+      document.addEventListener('keydown', onKeyF);
+
+      panel.querySelector('[data-fullscreen]')?.addEventListener('click', requestFs);
+      panel.querySelector('[data-close]')?.addEventListener('click', () => {
+        document.removeEventListener('keydown', onKeyF);
+        cleanup();
+      });
     },
   });
 }

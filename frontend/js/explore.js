@@ -179,7 +179,7 @@ export function renderExplorePage(container, outerSignal) {
       btn.type = 'button';
       btn.className = 'genre-tile';
       btn.style.cssText = `flex-direction:column;align-items:flex-start;gap:4px;${
-        active ? 'background:var(--accent-red);border-color:var(--accent-red);color:#fff;' : ''
+        active ? 'background:var(--accent-brand-gradient);border-color:transparent;color:#fff;' : ''
       }`;
       btn.innerHTML = `
         <div style="font-size:0.9rem;font-weight:800;">${escapeHtml(state.lang === 'ru' ? mood.titleRu : mood.titleEn)}</div>
