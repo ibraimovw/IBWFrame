@@ -234,15 +234,16 @@ export function renderHomePage(container, signal) {
       if (signal.aborted) return;
       bodyEl.innerHTML = '';
 
-      // 1. Главный фильм дня с мягким двуслойным свечением от постера
+      // 1. Главный фильм дня с яркой LED-подсветкой за рамкой
       if (spotlight) {
         const heroShell = document.createElement('div');
         heroShell.className = 'hero-spotlight-shell';
 
         const backdropUrl = getImageUrl(spotlight.backdrop_path, 'w1280');
         const posterUrl = getImageUrl(spotlight.poster_path, 'w500');
-        const shadowImgUrl = backdropUrl || posterUrl;
-        const bloomImgUrl = posterUrl || backdropUrl;
+        const ledGlowUrl = backdropUrl || posterUrl;
+        const shadowImgUrl = ledGlowUrl;
+        const bloomImgUrl = ledGlowUrl;
         const title = getMediaTitle(spotlight);
         const year = getMediaYear(spotlight);
         const rating = spotlight.vote_average > 0 ? spotlight.vote_average.toFixed(1) : null;

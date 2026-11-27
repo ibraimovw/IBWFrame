@@ -63,6 +63,13 @@ export function navigateTo(path) {
   appNavigate(path);
 }
 
+// Делает первую букву категории заглавной
+function capitalizeFirst(text) {
+  const str = String(text || '').trim();
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // Карточка фильма или сериала с постером, рейтингом и кнопкой «Избранное»
 export function createMediaCard(item, { explicitType, userScore } = {}) {
   const dict = t();
@@ -71,8 +78,10 @@ export function createMediaCard(item, { explicitType, userScore } = {}) {
   const year = getMediaYear(item);
   const rating = typeof item.vote_average === 'number' && item.vote_average > 0 ? item.vote_average.toFixed(1) : null;
   const posterUrl = getImageUrl(item.poster_path, 'w342');
-  const firstGenreId = item.genre_ids?.[0];
-  const genreLabel = firstGenreId ? getGenreName(firstGenreId) : '';
+  const firstGenreId = item.genre_ids?.[0] || item.genres?.[0]?.id;
+  const rawGenre = firstGenreId ? getGenreName(firstGenreId) : item.genres?.[0]?.name || '';
+  const fallbackType = type === 'tv' ? dict.detail.seriesType : dict.detail.movieType;
+  const hoverCategory = capitalizeFirst(rawGenre || fallbackType);
   const fav = isFavorite(item.id, type);
   const targetUrl = type === 'tv' ? `/series/${item.id}` : `/movie/${item.id}`;
 
@@ -98,7 +107,7 @@ export function createMediaCard(item, { explicitType, userScore } = {}) {
         ${fav ? icons.heartFill : icons.heart}
       </button>
       <div class="media-hover-overlay">
-        <span>${escapeHtml(genreLabel || (type === 'tv' ? dict.detail.seriesType : dict.detail.movieType))}</span>
+        <span>${escapeHtml(hoverCategory)}</span>
       </div>
     </div>
     <div class="media-card-body">

@@ -55,8 +55,17 @@ export function initInteractiveEffects() {
         const nx = Math.max(-0.5, Math.min(0.5, (e.clientX - rect.left) / rect.width - 0.5));
         const ny = Math.max(-0.5, Math.min(0.5, (e.clientY - rect.top) / rect.height - 0.5));
         const isHero = card.classList.contains('hero-spotlight');
-        const maxDeg = isHero ? 0.65 : 4.5;
-        const maxShift = isHero ? 0 : 3;
+        const isRandom = card.classList.contains('random-result-card');
+        let maxDeg = 4.5;
+        let maxShift = 3;
+
+        if (isHero) {
+          maxDeg = 0.65;
+          maxShift = 0;
+        } else if (isRandom) {
+          maxDeg = 1.25;
+          maxShift = 1;
+        }
 
         card.classList.add('is-tilting');
         card.style.setProperty('--tilt-x', `${(-ny * 2 * maxDeg).toFixed(2)}deg`);

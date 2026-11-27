@@ -225,6 +225,11 @@ export const translations = {
       filmography: 'Filmography',
       asCast: 'Acting Credits',
       asCrew: 'Directing & Crew',
+      loadMoreActors: 'Load More Actors',
+      loadMoreDirectors: 'Load More Directors',
+      loadMoreResults: 'Load More',
+      loadMoreCredits: 'Load More Movies & Series',
+      loadingMore: 'Loading...',
     },
     explore: {
       title: 'Explore Cinema',
@@ -550,6 +555,11 @@ export const translations = {
       filmography: 'Фильмография',
       asCast: 'Актёрские работы',
       asCrew: 'Режиссура и команда',
+      loadMoreActors: 'Загрузить ещё актёров',
+      loadMoreDirectors: 'Загрузить ещё режиссёров',
+      loadMoreResults: 'Загрузить ещё',
+      loadMoreCredits: 'Загрузить ещё фильмы и сериалы',
+      loadingMore: 'Загрузка...',
     },
     explore: {
       title: 'Обзор кино',

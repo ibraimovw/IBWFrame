@@ -40,16 +40,68 @@ function getTopPersonMovies(person) {
   return { titles, rating };
 }
 
+// Создаёт DOM-карточку одного актёра или режиссёра
+function createPersonCard(person, dict) {
+  const photo = getImageUrl(person.profile_path, 'w342');
+  const deptLabel = translateDepartment(person.known_for_department || '', state.lang);
+  const { titles: topKnown, rating: topRating } = getTopPersonMovies(person);
+
+  const card = document.createElement('article');
+  card.className = 'person-mini-card';
+  card.tabIndex = 0;
+  card.setAttribute('role', 'link');
+  card.innerHTML = `
+    ${
+      topKnown
+        ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}${
+            topRating ? `<span class="person-mini-known-rating">★ ${escapeHtml(topRating)}</span>` : ''
+          }<span class="person-mini-known-titles">${escapeHtml(topKnown)}</span></div>`
+        : ''
+    }
+    <div class="person-mini-photo">
+      ${
+        photo
+          ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" />`
+          : icons.user
+      }
+    </div>
+    <div class="person-mini-body">
+      <div class="person-mini-name">${escapeHtml(person.name || '')}</div>
+      ${deptLabel ? `<div class="person-mini-role">${escapeHtml(deptLabel)}</div>` : ''}
+    </div>
+  `;
+
+  card.addEventListener('click', () => navigateTo(`/person/${person.id}`));
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigateTo(`/person/${person.id}`);
+    }
+  });
+
+  return card;
+}
+
+// Проверяет, подходит ли персона под выбранную вкладку при просмотре списка
+function isActorPerson(person) {
+  const dept = (person.known_for_department || '').toLowerCase();
+  return dept === 'acting' || dept === 'actors' || dept === '';
+}
+
 // Страница списка актёров и режиссёров
 export function renderPeoplePage(container, outerSignal) {
   const dict = t();
   let query = '';
   let roleTab = 'actors';
   let people = [];
+  let currentPage = 1;
+  let totalPages = 1;
   let loading = true;
+  let loadingMore = false;
   let error = null;
   let timer = null;
   let reqController = null;
+  const seenIds = new Set();
 
   container.innerHTML = `
     <div class="container page-stack page-enter">
@@ -68,6 +120,7 @@ export function renderPeoplePage(container, outerSignal) {
       </div>
 
       <div id="people-grid"></div>
+      <div id="people-load-more" style="display:flex;justify-content:center;"></div>
     </div>
   `;
 
@@ -75,6 +128,42 @@ export function renderPeoplePage(container, outerSignal) {
   const inputEl = container.querySelector('#people-search-input');
   const clearBtn = container.querySelector('#people-search-clear');
   const gridEl = container.querySelector('#people-grid');
+  const loadMoreSlot = container.querySelector('#people-load-more');
+
+  function getFilteredPeople() {
+    const trimmed = query.trim();
+    if (!trimmed) return people;
+    const byRole = people.filter((p) => {
+      const dept = (p.known_for_department || '').toLowerCase();
+      if (roleTab === 'directors') return dept === 'directing';
+      return isActorPerson(p);
+    });
+    return byRole.length === 0 ? people : byRole;
+  }
+
+  function renderLoadMoreButton() {
+    loadMoreSlot.innerHTML = '';
+    if (loading || error || people.length === 0) return;
+    if (currentPage >= totalPages) return;
+
+    let label = dict.people.loadMoreActors;
+    if (query.trim().length >= 2) {
+      label = dict.people.loadMoreResults;
+    } else if (roleTab === 'directors') {
+      label = dict.people.loadMoreDirectors;
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary';
+    btn.disabled = loadingMore;
+    btn.innerHTML = loadingMore
+      ? `<span>${escapeHtml(dict.people.loadingMore)}</span>`
+      : `${icons.plus}<span>${escapeHtml(label)}</span>`;
+
+    btn.addEventListener('click', loadMorePeople);
+    loadMoreSlot.appendChild(btn);
+  }
 
   function renderRoleTabs() {
     roleTabsEl.innerHTML = '';
@@ -101,23 +190,16 @@ export function renderPeoplePage(container, outerSignal) {
     gridEl.innerHTML = '';
     if (loading) {
       gridEl.appendChild(createSkeletonGrid(12));
+      renderLoadMoreButton();
       return;
     }
     if (error) {
       gridEl.appendChild(createErrorState(error, loadPeople));
+      renderLoadMoreButton();
       return;
     }
 
-    const trimmed = query.trim();
-    const list = trimmed
-      ? people.filter((p) => {
-          const dept = (p.known_for_department || '').toLowerCase();
-          if (roleTab === 'directors') return dept === 'directing';
-          return dept === 'acting' || dept === 'actors' || dept === '';
-        })
-      : people;
-
-    const displayList = trimmed && list.length === 0 ? people : list;
+    const displayList = getFilteredPeople();
     if (displayList.length === 0) {
       gridEl.appendChild(
         createEmptyState({
@@ -125,80 +207,68 @@ export function renderPeoplePage(container, outerSignal) {
           description: dict.search.noResultsDesc,
         })
       );
+      renderLoadMoreButton();
       return;
     }
 
     const grid = document.createElement('div');
     grid.className = 'poster-grid';
     for (const person of displayList) {
-      const photo = getImageUrl(person.profile_path, 'w342');
-      const deptLabel = translateDepartment(person.known_for_department || '', state.lang);
-      const { titles: topKnown, rating: topRating } = getTopPersonMovies(person);
-      const card = document.createElement('article');
-      card.className = 'person-mini-card';
-      card.tabIndex = 0;
-      card.setAttribute('role', 'link');
-      card.innerHTML = `
-        ${
-          topKnown
-            ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}${
-                topRating ? `<span class="person-mini-known-rating">★ ${escapeHtml(topRating)}</span>` : ''
-              }<span class="person-mini-known-titles">${escapeHtml(topKnown)}</span></div>`
-            : ''
-        }
-        <div class="person-mini-photo">
-          ${
-            photo
-              ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" />`
-              : icons.user
-          }
-        </div>
-        <div class="person-mini-body">
-          <div class="person-mini-name">${escapeHtml(person.name || '')}</div>
-          ${deptLabel ? `<div class="person-mini-role">${escapeHtml(deptLabel)}</div>` : ''}
-        </div>
-      `;
-      card.addEventListener('click', () => navigateTo(`/person/${person.id}`));
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          navigateTo(`/person/${person.id}`);
-        }
-      });
-      grid.appendChild(card);
+      grid.appendChild(createPersonCard(person, dict));
     }
     gridEl.appendChild(grid);
+    renderLoadMoreButton();
   }
 
-  // Загрузка актёров, режиссёров или результатов поиска
+  // Загрузка первой страницы актёров, режиссёров или результатов поиска
   async function loadPeople() {
     if (reqController) reqController.abort();
     reqController = new AbortController();
     const signal = reqController.signal;
     loading = true;
+    loadingMore = false;
     error = null;
+    people = [];
+    seenIds.clear();
+    currentPage = 1;
+    totalPages = 1;
     renderGrid();
 
     try {
       const trimmed = query.trim();
       if (trimmed.length >= 2) {
         const res = await tmdbApi.search('person', trimmed, state.lang, 1, signal);
-        people = res.results || [];
+        for (const p of res.results || []) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            people.push(p);
+          }
+        }
+        currentPage = 1;
+        totalPages = Math.min(res.total_pages || 1, 500);
       } else if (roleTab === 'directors') {
-        const res = await tmdbApi.getDirectors(state.lang, signal);
-        people = res.results || [];
+        const res = await tmdbApi.getDirectors(state.lang, 1, signal);
+        for (const p of res.results || []) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            people.push(p);
+          }
+        }
+        currentPage = 1;
+        totalPages = res.total_pages || 1;
       } else {
         const [p1, p2] = await Promise.all([
           tmdbApi.getPopularPeople(state.lang, 1, signal),
           tmdbApi.getPopularPeople(state.lang, 2, signal),
         ]);
-        const seen = new Set();
-        people = [...(p1.results || []), ...(p2.results || [])].filter((p) => {
-          if (seen.has(p.id)) return false;
-          seen.add(p.id);
-          const dept = (p.known_for_department || '').toLowerCase();
-          return dept === 'acting' || dept === 'actors' || dept === '';
-        });
+        for (const p of [...(p1.results || []), ...(p2.results || [])]) {
+          if (!seenIds.has(p.id) && isActorPerson(p)) {
+            seenIds.add(p.id);
+            people.push(p);
+          }
+        }
+        currentPage = 2;
+        totalPages = Math.min(p1.total_pages || 1, 500);
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -207,6 +277,74 @@ export function renderPeoplePage(container, outerSignal) {
       if (!signal.aborted && !outerSignal.aborted) {
         loading = false;
         renderGrid();
+      }
+    }
+  }
+
+  // Подгрузка следующей порции актёров или режиссёров по кнопке «Загрузить ещё»
+  async function loadMorePeople() {
+    if (loading || loadingMore || currentPage >= totalPages) return;
+    loadingMore = true;
+    renderLoadMoreButton();
+
+    const signal = reqController?.signal;
+    const nextPage = currentPage + 1;
+    const added = [];
+
+    try {
+      const trimmed = query.trim();
+      if (trimmed.length >= 2) {
+        const res = await tmdbApi.search('person', trimmed, state.lang, nextPage, signal);
+        for (const p of res.results || []) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            people.push(p);
+            added.push(p);
+          }
+        }
+        currentPage = nextPage;
+        totalPages = Math.min(res.total_pages || totalPages, 500);
+      } else if (roleTab === 'directors') {
+        const res = await tmdbApi.getDirectors(state.lang, nextPage, signal);
+        for (const p of res.results || []) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            people.push(p);
+            added.push(p);
+          }
+        }
+        currentPage = nextPage;
+        totalPages = res.total_pages || totalPages;
+      } else {
+        let pageCursor = nextPage;
+        for (let step = 0; step < 3 && added.length === 0 && pageCursor <= totalPages; step += 1) {
+          const res = await tmdbApi.getPopularPeople(state.lang, pageCursor, signal);
+          totalPages = Math.min(res.total_pages || totalPages, 500);
+          for (const p of res.results || []) {
+            if (!seenIds.has(p.id) && isActorPerson(p)) {
+              seenIds.add(p.id);
+              people.push(p);
+              added.push(p);
+            }
+          }
+          currentPage = pageCursor;
+          pageCursor += 1;
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+    } finally {
+      loadingMore = false;
+      if (!outerSignal.aborted) {
+        const grid = gridEl.querySelector('.poster-grid');
+        if (grid && added.length > 0 && !query.trim()) {
+          for (const person of added) {
+            grid.appendChild(createPersonCard(person, dict));
+          }
+          renderLoadMoreButton();
+        } else {
+          renderGrid();
+        }
       }
     }
   }
@@ -237,6 +375,7 @@ export function renderPeoplePage(container, outerSignal) {
 // Детальная страница актёра или режиссёра с биографией и фильмографией
 export function renderPersonDetailPage(container, id, outerSignal) {
   const dict = t();
+  const CREDITS_STEP = 24;
 
   container.innerHTML = `
     <div class="container page-stack">
@@ -272,10 +411,17 @@ export function renderPersonDetailPage(container, id, outerSignal) {
         creditTab = 'crew';
       }
 
+      const limits = {
+        cast: CREDITS_STEP,
+        crew: CREDITS_STEP,
+      };
+
       const photoUrl = getImageUrl(person.profile_path, 'w500');
 
       const render = () => {
         const activeCredits = creditTab === 'cast' ? castCredits : crewCredits;
+        const visibleLimit = limits[creditTab];
+
         container.innerHTML = `
           <div class="container page-stack page-enter">
             <div>
@@ -345,6 +491,7 @@ export function renderPersonDetailPage(container, id, outerSignal) {
                   </div>
                 </div>
                 <div class="poster-grid" id="person-credits-grid"></div>
+                <div id="person-credits-more" style="display:flex;justify-content:center;margin-top:24px;"></div>
               </section>
             `
                 : ''
@@ -361,11 +508,43 @@ export function renderPersonDetailPage(container, id, outerSignal) {
         });
 
         const creditsGrid = container.querySelector('#person-credits-grid');
+        const moreSlot = container.querySelector('#person-credits-more');
+
         if (creditsGrid) {
-          for (const credit of activeCredits.slice(0, 36)) {
+          for (const credit of activeCredits.slice(0, visibleLimit)) {
             creditsGrid.appendChild(createMediaCard(credit, { explicitType: credit.media_type }));
           }
         }
+
+        // Отрисовка кнопки «Загрузить ещё фильмы и сериалы», если показаны не все работы
+        const syncCreditsMoreButton = () => {
+          if (!moreSlot) return;
+          moreSlot.innerHTML = '';
+          const shownCount = limits[creditTab];
+          if (shownCount >= activeCredits.length) return;
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-secondary';
+          btn.innerHTML = `${icons.plus}<span>${escapeHtml(dict.people.loadMoreCredits)}</span>`;
+          btn.addEventListener('click', () => {
+            const prevLimit = limits[creditTab];
+            const nextLimit = prevLimit + CREDITS_STEP;
+            limits[creditTab] = nextLimit;
+
+            if (creditsGrid) {
+              for (const credit of activeCredits.slice(prevLimit, nextLimit)) {
+                creditsGrid.appendChild(
+                  createMediaCard(credit, { explicitType: credit.media_type })
+                );
+              }
+            }
+            syncCreditsMoreButton();
+          });
+          moreSlot.appendChild(btn);
+        };
+
+        syncCreditsMoreButton();
       };
 
       render();

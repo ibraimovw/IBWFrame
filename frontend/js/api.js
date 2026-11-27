@@ -149,8 +149,8 @@ export const tmdbApi = {
     return requestJson(`/api/tmdb/person/popular?${qs}`, signal);
   },
 
-  getDirectors(lang, signal) {
-    const qs = buildQuery({ language: toTmdbLang(lang) });
+  getDirectors(lang, page = 1, signal) {
+    const qs = buildQuery({ language: toTmdbLang(lang), page });
     return requestJson(`/api/tmdb/person/directors?${qs}`, signal);
   },
 

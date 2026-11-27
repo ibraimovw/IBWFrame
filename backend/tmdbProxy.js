@@ -404,14 +404,15 @@ async function enrichVideos(mediaType, id, data, language) {
   data.videos = { results: existing };
 }
 
-async function fetchPopularDirectors(language) {
-  const cacheKey = `directors:${language}`;
+async function fetchPopularDirectors(language, page = 1) {
+  const safePage = Math.max(1, Math.min(page, 10));
+  const cacheKey = `directors:${language}:p${safePage}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
   const [popMovies, topMovies] = await Promise.all([
-    fetchFromTmdb('/movie/popular', { language, page: 1 }),
-    fetchFromTmdb('/movie/top_rated', { language, page: 1 }),
+    fetchFromTmdb('/movie/popular', { language, page: safePage }),
+    fetchFromTmdb('/movie/top_rated', { language, page: safePage }),
   ]);
 
   const movieMap = new Map();
@@ -464,7 +465,12 @@ async function fetchPopularDirectors(language) {
   const directors = Array.from(directorsMap.values()).sort(
     (a, b) => (b.popularity || 0) - (a.popularity || 0)
   );
-  const payload = { page: 1, results: directors, total_pages: 1, total_results: directors.length };
+  const payload = {
+    page: safePage,
+    results: directors,
+    total_pages: 10,
+    total_results: directors.length * 10,
+  };
   setCached(cacheKey, payload);
   return payload;
 }
@@ -659,7 +665,10 @@ export async function handleApiRequest(req, res, parsedUrl) {
 
     // Популярные режиссёры
     if (segments[0] === 'person' && segments[1] === 'directors' && segments.length === 2) {
-      const data = await fetchPopularDirectors(sanitizeLanguage(query.language));
+      const data = await fetchPopularDirectors(
+        sanitizeLanguage(query.language),
+        sanitizePage(query.page)
+      );
       sendJson(res, 200, data);
       return;
     }
