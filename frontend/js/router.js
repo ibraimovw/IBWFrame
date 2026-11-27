@@ -1,3 +1,4 @@
+// Разбор URL-пути и выбор подходящей страницы
 export function matchRoute(pathname) {
   const clean = pathname === '/' ? '/' : pathname.replace(/\/+$/, '');
 
@@ -28,14 +29,17 @@ export function matchRoute(pathname) {
   return { name: 'not-found' };
 }
 
+// Инициализация SPA-навигации без перезагрузки страницы
 export function createRouter(onRouteChange) {
   function navigate(path) {
     const targetUrl = new URL(path, window.location.origin);
     const current = window.location.pathname + window.location.search;
     const next = targetUrl.pathname + targetUrl.search;
+
     if (current !== next) {
       window.history.pushState({}, '', next);
     }
+
     window.scrollTo({ top: 0, behavior: 'auto' });
     onRouteChange();
   }

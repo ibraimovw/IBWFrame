@@ -12,34 +12,36 @@ const STATIC_DIR =
     ? path.join(ROOT_DIR, 'dist')
     : path.join(ROOT_DIR, 'frontend');
 
-/**
- * Lightweight native .env loader so the server works both with
- * `node --env-file=.env backend/server.js` and plain `node backend/server.js`.
- */
+// Читаем локальный .env файл, если переменные ещё не заданы
 function loadLocalEnv() {
   const envPath = path.join(ROOT_DIR, '.env');
   if (!fs.existsSync(envPath)) return;
+
   try {
     const content = fs.readFileSync(envPath, 'utf8');
     for (const rawLine of content.split(/\r?\n/)) {
       const line = rawLine.trim();
       if (!line || line.startsWith('#')) continue;
+
       const eqIndex = line.indexOf('=');
       if (eqIndex <= 0) continue;
+
       const key = line.slice(0, eqIndex).trim();
       let val = line.slice(eqIndex + 1).trim();
+
       if (
         (val.startsWith('"') && val.endsWith('"')) ||
         (val.startsWith("'") && val.endsWith("'"))
       ) {
         val = val.slice(1, -1);
       }
+
       if (!process.env[key]) {
         process.env[key] = val;
       }
     }
   } catch {
-    // Ignore unreadable .env
+    // Пропускаем, если файл .env недоступен для чтения
   }
 }
 
@@ -63,6 +65,7 @@ const MIME_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+// Отдаём статический файл с нужным MIME-типом
 function sendFile(res, filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
@@ -76,6 +79,7 @@ function sendFile(res, filePath) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+// Основной HTTP-сервер (API-прокси + статика)
 const server = http.createServer(async (req, res) => {
   try {
     const parsedUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -92,7 +96,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Resolve safe file path within STATIC_DIR
+    // Проверяем безопасный путь внутри папки со статикой
     const safeRel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
     const candidate = path.resolve(STATIC_DIR, safeRel);
 
@@ -105,14 +109,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Direct asset request that doesn't exist should return 404 (not HTML)
+    // Если не найден конкретный файл-ресурс — возвращаем 404
     if (path.extname(pathname)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Not Found');
       return;
     }
 
-    // SPA History API fallback
+    // Для всех маршрутов SPA отдаём index.html
     const indexHtml = path.join(STATIC_DIR, 'index.html');
     if (fs.existsSync(indexHtml)) {
       sendFile(res, indexHtml);

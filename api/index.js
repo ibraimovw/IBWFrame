@@ -1,3 +1,4 @@
+// Точка входа для Serverless-функции на Vercel
 import { handleApiRequest } from '../backend/tmdbProxy.js';
 
 export default async function handler(req, res) {

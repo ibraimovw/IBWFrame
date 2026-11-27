@@ -4,6 +4,7 @@ import { icons } from './icons.js';
 import { ensureGenresLoaded, state, t } from './store.js';
 import { createMediaRail, escapeHtml, navigateTo } from './ui.js';
 
+// Страница «Обзор»: случайный выбор фильма, настроения, десятилетия и страны
 export function renderExplorePage(container, outerSignal) {
   const dict = t();
   let activeMoodId = EXPLORE_MOODS[0].id;
@@ -89,6 +90,7 @@ export function renderExplorePage(container, outerSignal) {
   const moodRailSlot = container.querySelector('#mood-rail-slot');
   const cultRailSlot = container.querySelector('#cult-rail-slot');
 
+  // Отрисовка карточки случайно выбранного фильма
   function renderRandomResult() {
     randErrEl.style.display = randError ? 'block' : 'none';
     randBtnText.textContent = randMovie ? dict.explore.randomAgain : dict.explore.randomAction;
@@ -122,7 +124,7 @@ export function renderExplorePage(container, outerSignal) {
               : ''
           }
         </div>
-        <div style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:700;color:var(--accent-red);">
+        <div class="random-result-more">
           ${icons.info}
           <span>${escapeHtml(dict.home.moreDetails)}</span>
         </div>
@@ -171,6 +173,7 @@ export function renderExplorePage(container, outerSignal) {
     }
   });
 
+  // Переключатели подборок по настроению
   function renderMoodButtons() {
     moodBtnsEl.innerHTML = '';
     for (const mood of EXPLORE_MOODS) {
@@ -215,10 +218,11 @@ export function renderExplorePage(container, outerSignal) {
         })
       );
     } catch {
-      // Keep clean
+      // Оставляем слот пустым, если лента настроения не загрузилась
     }
   }
 
+  // Культовые фильмы прошлых лет
   async function loadCultRail() {
     try {
       const res = await tmdbApi.discover(
@@ -241,11 +245,11 @@ export function renderExplorePage(container, outerSignal) {
         })
       );
     } catch {
-      // Keep clean
+      // Игнорируем ошибку, чтобы не ломать остальную страницу
     }
   }
 
-  // Decades
+  // Плитки десятилетий
   const decadesEl = container.querySelector('#decades-grid');
   for (const d of EXPLORE_DECADES) {
     const btn = document.createElement('button');
@@ -256,7 +260,7 @@ export function renderExplorePage(container, outerSignal) {
     decadesEl.appendChild(btn);
   }
 
-  // Countries
+  // Плитки стран
   const countriesEl = container.querySelector('#countries-grid');
   for (const c of EXPLORE_COUNTRIES) {
     const btn = document.createElement('button');

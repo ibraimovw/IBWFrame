@@ -1,3 +1,4 @@
+// Глобальное состояние приложения (профиль, тема, язык и списки)
 import { tmdbApi, toLibraryItem } from './api.js';
 import { detectInitialLang, getT, setDocumentLang } from './i18n.js';
 import {
@@ -76,7 +77,7 @@ export async function ensureGenresLoaded(signal) {
     state.tvGenres = tvRes.genres || [];
     state.genresLangLoaded = state.lang;
   } catch {
-    // Genres will remain empty cleanly until TMDB responds
+    // Жанры загрузятся позже при успешном ответе TMDB
   }
 }
 

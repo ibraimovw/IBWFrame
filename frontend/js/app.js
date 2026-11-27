@@ -18,15 +18,18 @@ import {
   setNavigator,
 } from './ui.js';
 
+// Текущий контроллер отмены запросов при смене страницы и экземпляр роутера
 let currentRouteController = null;
 let routerInstance = null;
 
+// Проверка, активен ли пункт меню
 function isNavActive(path) {
   const cur = window.location.pathname;
   if (path === '/') return cur === '/';
   return cur.startsWith(path);
 }
 
+// Список ссылок главного меню
 function getNavItems(dict) {
   return [
     { path: '/', label: dict.nav.home },
@@ -39,6 +42,7 @@ function getNavItems(dict) {
   ];
 }
 
+// Отрисовка шапки сайта, переключателей и строки поиска
 function renderHeader() {
   const headerEl = document.getElementById('site-header');
   if (!headerEl) return;
@@ -144,6 +148,7 @@ function renderHeader() {
   attachHeaderSearchBehavior(headerEl);
 }
 
+// Нижняя панель навигации для мобильных экранов
 function renderMobileNav() {
   const navEl = document.getElementById('mobile-nav');
   if (!navEl) return;
@@ -173,6 +178,7 @@ function renderMobileNav() {
   });
 }
 
+// Подвал сайта с логотипом, ссылками и уведомлением TMDB
 function renderFooter() {
   const footerEl = document.getElementById('site-footer');
   if (!footerEl) return;
@@ -222,6 +228,7 @@ function renderFooter() {
   });
 }
 
+// Заглушка для неизвестного адреса (404)
 function renderNotFoundPage(container) {
   const dict = t();
   container.innerHTML = `
@@ -240,6 +247,7 @@ function renderNotFoundPage(container) {
   container.querySelector('[data-go-search]')?.addEventListener('click', () => routerInstance?.navigate('/search'));
 }
 
+// Перерисовка текущей страницы при переходе по маршруту или смене языка/темы
 function renderCurrentRoute() {
   if (currentRouteController) {
     currentRouteController.abort();
@@ -302,6 +310,7 @@ function renderCurrentRoute() {
   }
 }
 
+// Кнопка плавной прокрутки наверх страницы
 function initBackToTop() {
   const btn = document.getElementById('back-to-top');
   if (!btn) return;
@@ -316,6 +325,7 @@ function initBackToTop() {
   onScroll();
 }
 
+// Точка входа: инициализация уведомлений, роутера и первого экрана
 function bootstrap() {
   initToastSystem();
   initBackToTop();

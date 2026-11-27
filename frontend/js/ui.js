@@ -17,6 +17,7 @@ import {
   updateProfile,
 } from './store.js';
 
+// Безопасное экранирование текста для вставки в HTML
 export function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -26,6 +27,7 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// Разметка логотипа IBWFrame
 export function renderLogoHtml() {
   return `
     <span class="inline-logo" style="display:inline-flex;align-items:center;gap:10px;">
@@ -37,6 +39,7 @@ export function renderLogoHtml() {
   `;
 }
 
+// Всплывающие уведомления (toast) в правом нижнем углу
 export function initToastSystem() {
   const root = document.getElementById('toast-root');
   registerToastHandler((message) => {
@@ -60,6 +63,7 @@ export function navigateTo(path) {
   appNavigate(path);
 }
 
+// Карточка фильма или сериала с постером, рейтингом и кнопкой «Избранное»
 export function createMediaCard(item, { explicitType, userScore } = {}) {
   const dict = t();
   const type = explicitType || getMediaType(item);
@@ -134,6 +138,7 @@ export function createMediaCard(item, { explicitType, userScore } = {}) {
   return card;
 }
 
+// Скелетон-заглушка на время загрузки сетки
 export function createSkeletonGrid(count = 12) {
   const grid = document.createElement('div');
   grid.className = 'poster-grid';
@@ -149,6 +154,7 @@ export function createSkeletonGrid(count = 12) {
   return grid;
 }
 
+// Горизонтальная лента фильмов со стрелками прокрутки на ПК
 export function createMediaRail({
   title,
   subtitle = '',
@@ -255,6 +261,7 @@ export function createMediaRail({
   return section;
 }
 
+// Блок пустого состояния (если список пуст или ничего не найдено)
 export function createEmptyState({ title, description, actionLabel, onAction }) {
   const box = document.createElement('div');
   box.className = 'state-card';
@@ -272,6 +279,7 @@ export function createEmptyState({ title, description, actionLabel, onAction }) 
   return box;
 }
 
+// Блок ошибки с кнопкой повторной загрузки
 export function createErrorState(error, onRetry) {
   const dict = t();
   const code = error?.code || 'BACKEND_ERROR';
@@ -307,6 +315,7 @@ export function createErrorState(error, onRetry) {
   return box;
 }
 
+// Базовые помощники для открытия и закрытия модальных окон
 function closeModalRoot() {
   const root = document.getElementById('modal-root');
   if (root) root.innerHTML = '';
@@ -348,6 +357,7 @@ function mountModal({ contentHtml, wide = false, backdropClass = '', dismissible
   return cleanup;
 }
 
+// Модальное окно с YouTube-трейлером и кнопкой перехода на весь экран
 export function openTrailerModal({ youtubeKey, title, youtubeSearchUrl = '' }) {
   const dict = t();
   const embedUrl = youtubeKey
@@ -412,7 +422,7 @@ export function openTrailerModal({ youtubeKey, title, youtubeSearchUrl = '' }) {
           try {
             fn.call(target);
           } catch {
-            // Fullscreen may be restricted in nested iframes
+            // Браузер может ограничивать полноэкранный режим внутри встроенного окна
           }
         }
       };
@@ -439,6 +449,7 @@ export function openTrailerModal({ youtubeKey, title, youtubeSearchUrl = '' }) {
   });
 }
 
+// Окно подтверждения опасного действия (например, удаления коллекции)
 export function openConfirmModal({ title, body, confirmLabel, cancelLabel, onConfirm }) {
   mountModal({
     contentHtml: `
@@ -459,6 +470,7 @@ export function openConfirmModal({ title, body, confirmLabel, cancelLabel, onCon
   });
 }
 
+// Модальное окно добавления фильма или сериала в личную коллекцию
 export function openCollectionPickerModal(mediaItem) {
   const dict = t();
   const renderPickerContent = (panel, cleanup) => {
@@ -531,6 +543,7 @@ export function openCollectionPickerModal(mediaItem) {
   });
 }
 
+// Стартовое окно приветствия при первом визите
 export function openWelcomeModal() {
   const renderWelcome = (panel, cleanup) => {
     const dict = t();
@@ -611,6 +624,7 @@ export function openWelcomeModal() {
   });
 }
 
+// Окно личного профиля со статистикой и выбором региона
 export function openProfileModal() {
   const dict = t();
   const regionsHtml = WATCH_REGIONS.map(

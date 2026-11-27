@@ -1,3 +1,4 @@
+// Клиентские функции для запросов к нашему API-прокси
 const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/';
 
 export class ApiError extends Error {
@@ -31,20 +32,25 @@ export function getMediaType(item, fallback = 'movie') {
   return fallback;
 }
 
+// Приводим объект фильма или сериала к единому виду для сохранения в браузере
 export function toLibraryItem(item, explicitType) {
   const type = explicitType || getMediaType(item);
+  let genreIds = [];
+
+  if (Array.isArray(item.genre_ids)) {
+    genreIds = item.genre_ids;
+  } else if (Array.isArray(item.genres)) {
+    genreIds = item.genres.map((g) => g.id);
+  }
+
   return {
     id: item.id,
     mediaType: type,
-    title: item.title || item.name || item.original_title || item.original_name || 'Untitled',
+    title: getMediaTitle(item),
     poster_path: item.poster_path ?? null,
     release_date: item.release_date || item.first_air_date || '',
     vote_average: typeof item.vote_average === 'number' ? item.vote_average : 0,
-    genre_ids: Array.isArray(item.genre_ids)
-      ? item.genre_ids
-      : Array.isArray(item.genres)
-        ? item.genres.map((g) => g.id)
-        : [],
+    genre_ids: genreIds,
   };
 }
 

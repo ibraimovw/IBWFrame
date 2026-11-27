@@ -11,6 +11,7 @@ import {
   escapeHtml,
 } from './ui.js';
 
+// Вкладки каталога для фильмов и сериалов
 const MOVIE_TABS = ['popular', 'trending', 'top_rated', 'upcoming', 'now_playing', 'all'];
 const SERIES_TABS = ['popular', 'trending', 'top_rated', 'airing_today', 'on_the_air', 'all'];
 
@@ -24,6 +25,7 @@ const DEFAULT_FILTERS = {
   sortBy: 'popularity.desc',
 };
 
+// Отрисовка каталога фильмов или сериалов с фильтрами и автоподгрузкой
 export function renderCatalogPage(container, mediaType, outerSignal) {
   const dict = t();
   const isMovie = mediaType === 'movie';
@@ -37,14 +39,14 @@ export function renderCatalogPage(container, mediaType, outerSignal) {
   const urlYear = urlParams.get('year');
   const urlCountry = urlParams.get('country');
 
-  const initialTab =
-    urlTab && tabs.includes(urlTab)
-      ? urlTab
-      : urlGenre || urlYear || urlCountry
-        ? 'all'
-        : tabs.includes(stored.tab)
-          ? stored.tab
-          : 'popular';
+  let initialTab = 'popular';
+  if (urlTab && tabs.includes(urlTab)) {
+    initialTab = urlTab;
+  } else if (urlGenre || urlYear || urlCountry) {
+    initialTab = 'all';
+  } else if (tabs.includes(stored.tab)) {
+    initialTab = stored.tab;
+  }
 
   const filters = {
     ...stored,
@@ -86,6 +88,7 @@ export function renderCatalogPage(container, mediaType, outerSignal) {
   const resultsEl = container.querySelector('#catalog-results');
   const sentinelEl = container.querySelector('#catalog-sentinel');
 
+  // Проверка, выбраны ли пользовательские фильтры
   function hasActiveFilterCriteria() {
     return Boolean(
       filters.genre ||
@@ -101,6 +104,7 @@ export function renderCatalogPage(container, mediaType, outerSignal) {
     saveCatalogState(mediaType, filters);
   }
 
+  // Отрисовка вкладок категорий
   function renderTabs() {
     tabsEl.innerHTML = '';
     for (const tabKey of tabs) {
@@ -118,6 +122,7 @@ export function renderCatalogPage(container, mediaType, outerSignal) {
     }
   }
 
+  // Отрисовка панели фильтров
   function renderFilters() {
     const gOpts = genresList()
       .map(
@@ -322,6 +327,7 @@ export function renderCatalogPage(container, mediaType, outerSignal) {
     }
   }
 
+  // Загрузка очередной страницы каталога
   async function fetchPage(targetPage, reset) {
     if (outerSignal.aborted) return;
     if (!reset && (loading || loadingMore || targetPage > totalPages)) return;

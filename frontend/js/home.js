@@ -19,6 +19,7 @@ import {
   openTrailerModal,
 } from './ui.js';
 
+// Формирует ключ локальной даты вида ГГГГ-ММ-ДД
 function getLocalDateKey(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -26,6 +27,7 @@ function getLocalDateKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+// Разница в днях между двумя датами
 function daysBetweenKeys(olderKey, newerKey) {
   const parseUtc = (key) => {
     const [y, m, d] = key.split('-').map(Number);
@@ -34,6 +36,7 @@ function daysBetweenKeys(olderKey, newerKey) {
   return Math.round((parseUtc(newerKey) - parseUtc(olderKey)) / 86400000);
 }
 
+// Выбирает фильм дня на 24 часа без повторов чаще одного раза в 14 дней
 async function resolveDailySpotlight({ pool, lang, signal }) {
   if (!Array.isArray(pool) || pool.length === 0) return null;
 
@@ -53,7 +56,7 @@ async function resolveDailySpotlight({ pool, lang, signal }) {
         return fetched;
       }
     } catch {
-      // Fall through to picking a fresh candidate if detail lookup fails
+      // Если фильм не загрузился, ниже выберем другой вариант
     }
   }
 
@@ -78,6 +81,7 @@ async function resolveDailySpotlight({ pool, lang, signal }) {
   return chosen || null;
 }
 
+// Определяет время суток по локальному часу пользователя
 function getTimePeriod() {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return 'morning';
@@ -97,6 +101,7 @@ function getPhraseSequence(dict, period) {
   return combined.length > 0 ? combined : [dict.welcome.subtitle];
 }
 
+// Форматирует локальное время пользователя для блока приветствия
 function getBrowserTimeLabel(lang) {
   try {
     return new Date().toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', {
@@ -108,6 +113,7 @@ function getBrowserTimeLabel(lang) {
   }
 }
 
+// Отрисовка главной страницы
 export function renderHomePage(container, signal) {
   const dict = t();
   const displayName = state.profile.name || dict.welcome.guestName;
@@ -222,20 +228,21 @@ export function renderHomePage(container, signal) {
           signal,
         });
       } catch {
-        // Keep home rendering if recommendations fail
+        // Главная страница продолжает работу, даже если рекомендации не загрузились
       }
 
       if (signal.aborted) return;
       bodyEl.innerHTML = '';
 
-      // 1. Featured Movie Spotlight with Poster-Matched Ambient Shadow
+      // 1. Главный фильм дня с мягким двуслойным свечением от постера
       if (spotlight) {
         const heroShell = document.createElement('div');
         heroShell.className = 'hero-spotlight-shell';
 
         const backdropUrl = getImageUrl(spotlight.backdrop_path, 'w1280');
         const posterUrl = getImageUrl(spotlight.poster_path, 'w500');
-        const shadowImgUrl = posterUrl || backdropUrl;
+        const shadowImgUrl = backdropUrl || posterUrl;
+        const bloomImgUrl = posterUrl || backdropUrl;
         const title = getMediaTitle(spotlight);
         const year = getMediaYear(spotlight);
         const rating = spotlight.vote_average > 0 ? spotlight.vote_average.toFixed(1) : null;
@@ -244,6 +251,11 @@ export function renderHomePage(container, signal) {
           ${
             shadowImgUrl
               ? `<img src="${escapeHtml(shadowImgUrl)}" alt="" aria-hidden="true" referrerpolicy="no-referrer" class="hero-ambient-shadow" />`
+              : ''
+          }
+          ${
+            bloomImgUrl
+              ? `<img src="${escapeHtml(bloomImgUrl)}" alt="" aria-hidden="true" referrerpolicy="no-referrer" class="hero-ambient-bloom" />`
               : ''
           }
           <section class="hero-spotlight">
@@ -309,7 +321,7 @@ export function renderHomePage(container, signal) {
         bodyEl.appendChild(heroShell);
       }
 
-      // 2. Trending Now
+      // 2. В тренде сейчас
       bodyEl.appendChild(
         createMediaRail({
           title: dict.home.trendingNow,
@@ -319,7 +331,7 @@ export function renderHomePage(container, signal) {
         })
       );
 
-      // 3. Popular Movies
+      // 3. Популярные фильмы
       bodyEl.appendChild(
         createMediaRail({
           title: dict.home.popularMovies,
@@ -330,7 +342,7 @@ export function renderHomePage(container, signal) {
         })
       );
 
-      // 4. Top Rated
+      // 4. Высокий рейтинг
       bodyEl.appendChild(
         createMediaRail({
           title: dict.home.topRated,
@@ -341,7 +353,7 @@ export function renderHomePage(container, signal) {
         })
       );
 
-      // 5. Upcoming
+      // 5. Скоро в кино
       bodyEl.appendChild(
         createMediaRail({
           title: dict.home.upcoming,
@@ -352,7 +364,7 @@ export function renderHomePage(container, signal) {
         })
       );
 
-      // 6. Popular Series
+      // 6. Популярные сериалы
       bodyEl.appendChild(
         createMediaRail({
           title: dict.home.popularSeries,
@@ -363,7 +375,7 @@ export function renderHomePage(container, signal) {
         })
       );
 
-      // 7. Browse by Genres
+      // 7. Быстрый переход по жанрам
       if (state.movieGenres.length > 0) {
         const genreSection = document.createElement('section');
         genreSection.innerHTML = `
@@ -391,7 +403,7 @@ export function renderHomePage(container, signal) {
         bodyEl.appendChild(genreSection);
       }
 
-      // 8. Editor's Choice (Compact Visual Cards with Mini Poster Fans)
+      // 8. Выбор редакции (компактные карточки с мини-постерами)
       const featuredCollections = EDITORIAL_COLLECTIONS.slice(0, 3);
       const editorsSection = document.createElement('section');
       editorsSection.innerHTML = `
@@ -453,7 +465,7 @@ export function renderHomePage(container, signal) {
         });
       });
 
-      // 9. Recommended for You
+      // 9. Персональные рекомендации
       if (recs.items.length > 0) {
         bodyEl.appendChild(
           createMediaRail({

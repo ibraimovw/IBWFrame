@@ -32,6 +32,7 @@ import {
   openTrailerModal,
 } from './ui.js';
 
+// Получение возрастного рейтинга (сначала США, иначе первый доступный)
 function getCertification(detail, isMovie) {
   if (isMovie && detail.release_dates?.results) {
     const pick =
@@ -49,6 +50,53 @@ function getCertification(detail, isMovie) {
   return null;
 }
 
+// Отправка ссылки через системное меню «Поделиться» или копирование в буфер обмена
+async function shareOrCopyPageUrl({ title, overview, year, copiedMsg }) {
+  const shareUrl = window.location.href;
+  const shareTitle = year ? `${title} (${year}) — IBWFrame` : `${title} — IBWFrame`;
+  const shareText = overview ? overview.slice(0, 140) : shareTitle;
+
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+
+  let copied = false;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+
+  if (!copied) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = shareUrl;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      copied = document.execCommand('copy');
+      ta.remove();
+    } catch {
+      copied = false;
+    }
+  }
+
+  if (copied) {
+    notifyToast(copiedMsg);
+  }
+}
+
+// Страница подробной информации о фильме или сериале
 export function renderDetailPage(container, mediaType, id, outerSignal) {
   const dict = t();
   const isMovie = mediaType === 'movie';
@@ -93,6 +141,7 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
         .filter((s) => !recIds.has(s.id))
         .slice(0, 14);
 
+      // Перерисовка шапки карточки, платформы просмотра и похожих лент
       const renderHeroAndBody = () => {
         const inWatchlist = isInWatchlist(detail.id, mediaType);
         const watched = isWatched(detail.id, mediaType);
@@ -444,49 +493,13 @@ export function renderDetailPage(container, mediaType, id, outerSignal) {
           });
         });
 
-        container.querySelector('[data-share]')?.addEventListener('click', async () => {
-          const shareUrl = window.location.href;
-          const shareTitle = year ? `${title} (${year}) — IBWFrame` : `${title} — IBWFrame`;
-          const shareText = detail.overview ? detail.overview.slice(0, 140) : shareTitle;
-
-          if (typeof navigator.share === 'function') {
-            try {
-              await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
-              return;
-            } catch (err) {
-              if (err && err.name === 'AbortError') return;
-            }
-          }
-
-          let copied = false;
-          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-            try {
-              await navigator.clipboard.writeText(shareUrl);
-              copied = true;
-            } catch {
-              copied = false;
-            }
-          }
-
-          if (!copied) {
-            try {
-              const ta = document.createElement('textarea');
-              ta.value = shareUrl;
-              ta.setAttribute('readonly', '');
-              ta.style.position = 'fixed';
-              ta.style.opacity = '0';
-              document.body.appendChild(ta);
-              ta.select();
-              copied = document.execCommand('copy');
-              ta.remove();
-            } catch {
-              copied = false;
-            }
-          }
-
-          if (copied) {
-            notifyToast(dict.actions.linkCopied);
-          }
+        container.querySelector('[data-share]')?.addEventListener('click', () => {
+          shareOrCopyPageUrl({
+            title,
+            overview: detail.overview,
+            year,
+            copiedMsg: dict.actions.linkCopied,
+          });
         });
 
         container.querySelectorAll('[data-rate]').forEach((btn) => {

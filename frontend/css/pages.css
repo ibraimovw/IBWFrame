@@ -1,4 +1,4 @@
-/* Page Headings */
+/* Заголовки страниц */
 .page-title {
   margin: 0;
   font-family: var(--font-display);
@@ -14,7 +14,7 @@
   color: var(--text-muted);
 }
 
-/* Welcome Strip with Browser Time-of-Day Greeting */
+/* Приветствие по времени суток и часы */
 .welcome-banner {
   display: flex;
   flex-direction: column;
@@ -86,30 +86,53 @@
   transform: translateY(3px);
 }
 
-/* Featured Hero Spotlight with Dynamic Poster-Matched Ambient Shadow */
+/* Главный фильм дня с мягким свечением под цвет кадра */
 .hero-spotlight-shell {
   position: relative;
   isolation: isolate;
-  margin-top: 8px;
+  margin: 10px 0 8px;
 }
 
 .hero-ambient-shadow {
   position: absolute;
-  inset: 14px 10px -22px;
-  width: calc(100% - 20px);
-  height: calc(100% + 8px);
+  inset: -18px -26px -34px;
+  width: calc(100% + 52px);
+  height: calc(100% + 52px);
   object-fit: cover;
-  border-radius: 28px;
-  filter: blur(44px) saturate(1.85);
-  opacity: 0.56;
-  transform: scale(0.98);
+  object-position: center 25%;
+  border-radius: 40px;
+  filter: blur(58px) saturate(2.15) brightness(1.08);
+  opacity: 0.62;
+  transform: translate3d(0, 8px, 0) scale(1.01);
+  -webkit-mask-image: radial-gradient(ellipse 88% 82% at 50% 52%, #000 32%, transparent 82%);
+  mask-image: radial-gradient(ellipse 88% 82% at 50% 52%, #000 32%, transparent 82%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-ambient-bloom {
+  position: absolute;
+  inset: 28px 10% -26px;
+  width: 80%;
+  height: calc(100% - 2px);
+  object-fit: cover;
+  border-radius: 999px;
+  filter: blur(44px) saturate(1.9);
+  opacity: 0.44;
+  -webkit-mask-image: radial-gradient(ellipse 85% 80% at 50% 58%, #000 28%, transparent 80%);
+  mask-image: radial-gradient(ellipse 85% 80% at 50% 58%, #000 28%, transparent 80%);
   z-index: 0;
   pointer-events: none;
 }
 
 html[data-theme='light'] .hero-ambient-shadow {
-  opacity: 0.36;
-  filter: blur(38px) saturate(1.55);
+  opacity: 0.38;
+  filter: blur(52px) saturate(1.65) brightness(1.04);
+}
+
+html[data-theme='light'] .hero-ambient-bloom {
+  opacity: 0.28;
+  filter: blur(42px) saturate(1.45);
 }
 
 .hero-spotlight {
@@ -119,6 +142,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background-color: #0b0d11;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52);
   min-height: 410px;
   display: flex;
   align-items: flex-end;
@@ -245,7 +269,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   background-color: rgba(255, 255, 255, 0.24);
 }
 
-/* Browse by Genres Tiles */
+/* Плитки жанров */
 .genre-tiles-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -293,7 +317,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   color: var(--text-muted);
 }
 
-/* Redesigned Compact & Visual Editor's Choice Cards (Accent Magnetic Tilt Cards) */
+/* Компактные карточки «Выбор редакции» */
 .editorial-compact-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -454,7 +478,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   transform: translateX(3px);
 }
 
-/* Legacy/Banner header on Editorial Detail Page */
+/* Шапка страницы отдельной подборки */
 .editorial-banner-hero {
   padding: 24px 28px;
   border-radius: var(--radius-xl);
@@ -462,7 +486,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   background: linear-gradient(135deg, var(--steel-surface) 0%, var(--steel-surface-alt) 100%);
 }
 
-/* Catalog Filter Bar (30% Steel Gray surface) */
+/* Панель фильтров каталога */
 .filter-panel {
   border-radius: var(--radius-lg);
   border: 1px solid var(--steel-border);
@@ -512,7 +536,7 @@ html[data-theme='light'] .hero-ambient-shadow {
   align-items: center;
 }
 
-/* Detail Page Hero & Backdrop */
+/* Страница фильма или сериала */
 .detail-hero {
   position: relative;
   border-bottom: 1px solid var(--steel-border-subtle);
@@ -710,7 +734,7 @@ html[data-theme='light'] .detail-backdrop-fade {
   color: #ffffff;
 }
 
-/* Detail Body Sections */
+/* Актёры, команда и детали релиза */
 .detail-body-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -773,7 +797,13 @@ html[data-theme='light'] .detail-backdrop-fade {
   color: var(--accent-brand-warm);
 }
 
-.person-mini-known-bar span {
+.person-mini-known-rating {
+  flex-shrink: 0;
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.person-mini-known-titles {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -788,6 +818,11 @@ html[data-theme='light'] .detail-backdrop-fade {
   align-items: center;
   justify-content: center;
   color: var(--text-subtle);
+}
+
+.person-mini-photo > svg {
+  width: 40px;
+  height: 40px;
 }
 
 .person-mini-photo img {
@@ -869,7 +904,7 @@ html[data-theme='light'] .detail-backdrop-fade {
   border-radius: 6px;
 }
 
-/* Trailer Video Wrapper + Fullscreen Hint Bar */
+/* Плеер трейлера и строка подсказки */
 .trailer-frame-wrap {
   position: relative;
   width: 100%;
@@ -903,7 +938,7 @@ html[data-theme='light'] .detail-backdrop-fade {
   line-height: 1.4;
 }
 
-/* Explore Random Picker Box */
+/* Блок случайного выбора фильма */
 .explore-picker-card {
   border-radius: var(--radius-xl);
   border: 1px solid var(--steel-border);
@@ -963,7 +998,23 @@ html[data-theme='light'] .detail-backdrop-fade {
   object-fit: cover;
 }
 
-/* Person Detail */
+.random-result-more {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-brand-warm);
+}
+
+.random-result-more svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* Страница персоны */
 .person-detail-header {
   display: flex;
   flex-direction: column;
@@ -995,7 +1046,7 @@ html[data-theme='light'] .detail-backdrop-fade {
   object-position: top;
 }
 
-/* Custom Collection Card (Accent Magnetic Tilt Card) */
+/* Карточка пользовательской коллекции */
 .collection-card {
   position: relative;
   border-radius: var(--radius-lg);
@@ -1036,7 +1087,7 @@ html[data-theme='light'] .detail-backdrop-fade {
   box-shadow: var(--shadow-sm);
 }
 
-/* Profile Stats Grid: Never overflows "Просмотрено" on 320px+ phones */
+/* Сетка статистики в профиле */
 .stats-grid-5 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

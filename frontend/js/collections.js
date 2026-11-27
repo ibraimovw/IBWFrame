@@ -18,6 +18,7 @@ import {
   openConfirmModal,
 } from './ui.js';
 
+// Модальное окно создания новой пользовательской коллекции
 function openCreateCollectionModal() {
   const dict = t();
   const root = document.getElementById('modal-root');
@@ -67,10 +68,49 @@ function openCreateCollectionModal() {
   });
 }
 
+// Создаёт карточку пользовательской коллекции для разделов «Коллекции» и «Моя библиотека»
+function createCustomCollectionCard(col, dict, onDeleted) {
+  const card = document.createElement('div');
+  card.className = 'collection-card';
+  card.innerHTML = `
+    <div style="cursor:pointer;" data-open-col>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+        <h3 style="margin:0;font-size:1.1rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(col.name)}</h3>
+        <span class="tabular-nums" style="font-size:0.75rem;color:var(--text-muted);flex-shrink:0;">${col.items.length} ${escapeHtml(dict.collections.titlesCount)}</span>
+      </div>
+      ${col.description ? `<p style="margin:6px 0 0;font-size:0.82rem;color:var(--text-muted);">${escapeHtml(col.description)}</p>` : ''}
+    </div>
+    <div style="padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;">
+      <button type="button" class="section-link" data-open-col>${escapeHtml(dict.home.seeAll)}${icons.arrowRight}</button>
+      <button type="button" class="btn btn-ghost" data-del-col style="width:32px;height:32px;padding:0;" aria-label="${escapeHtml(dict.collections.deleteBtn)}">${icons.trash}</button>
+    </div>
+  `;
+
+  card.querySelectorAll('[data-open-col]').forEach((el) => {
+    el.addEventListener('click', () => navigateTo(`/collections/custom/${col.id}`));
+  });
+
+  card.querySelector('[data-del-col]')?.addEventListener('click', () => {
+    openConfirmModal({
+      title: dict.collections.deleteConfirmTitle,
+      body: dict.collections.deleteConfirmBody,
+      confirmLabel: dict.collections.confirmDelete,
+      cancelLabel: dict.collections.cancelBtn,
+      onConfirm: () => {
+        deleteCollection(col.id);
+        onDeleted();
+      },
+    });
+  });
+
+  return card;
+}
+
+// Страница редакционных и пользовательских коллекций
 export function renderCollectionsPage(container, { editorialSlug, customId } = {}, outerSignal) {
   const dict = t();
 
-  // 1. Editorial detail
+  // 1. Детальная страница редакционной подборки
   if (editorialSlug) {
     const editorial = EDITORIAL_COLLECTIONS.find((c) => c.slug === editorialSlug);
     if (!editorial) {
@@ -132,7 +172,7 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
     return;
   }
 
-  // 2. Custom collection detail
+  // 2. Детальная страница пользовательской коллекции
   if (customId) {
     const col = state.customCollections.find((c) => c.id === customId);
     if (!col) {
@@ -219,7 +259,7 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
     return;
   }
 
-  // 3. Overview (Editorial + Custom Collections)
+  // 3. Общий обзор редакционных и личных коллекций
   container.innerHTML = `
     <div class="container page-stack page-enter">
       <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;">
@@ -306,42 +346,17 @@ export function renderCollectionsPage(container, { editorialSlug, customId } = {
     const grid = document.createElement('div');
     grid.className = 'cards-grid-3';
     for (const col of state.customCollections) {
-      const card = document.createElement('div');
-      card.className = 'collection-card';
-      card.innerHTML = `
-        <div style="cursor:pointer;" data-open-col>
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-            <h3 style="margin:0;font-size:1.1rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(col.name)}</h3>
-            <span class="tabular-nums" style="font-size:0.75rem;color:var(--text-muted);flex-shrink:0;">${col.items.length} ${escapeHtml(dict.collections.titlesCount)}</span>
-          </div>
-          ${col.description ? `<p style="margin:6px 0 0;font-size:0.82rem;color:var(--text-muted);">${escapeHtml(col.description)}</p>` : ''}
-        </div>
-        <div style="padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;">
-          <button type="button" class="section-link" data-open-col>${escapeHtml(dict.home.seeAll)}${icons.arrowRight}</button>
-          <button type="button" class="btn btn-ghost" data-del-col style="width:32px;height:32px;padding:0;" aria-label="${escapeHtml(dict.collections.deleteBtn)}">${icons.trash}</button>
-        </div>
-      `;
-      card.querySelectorAll('[data-open-col]').forEach((el) => {
-        el.addEventListener('click', () => navigateTo(`/collections/custom/${col.id}`));
-      });
-      card.querySelector('[data-del-col]')?.addEventListener('click', () => {
-        openConfirmModal({
-          title: dict.collections.deleteConfirmTitle,
-          body: dict.collections.deleteConfirmBody,
-          confirmLabel: dict.collections.confirmDelete,
-          cancelLabel: dict.collections.cancelBtn,
-          onConfirm: () => {
-            deleteCollection(col.id);
-            renderCollectionsPage(container, {}, outerSignal);
-          },
-        });
-      });
-      grid.appendChild(card);
+      grid.appendChild(
+        createCustomCollectionCard(col, dict, () => {
+          renderCollectionsPage(container, {}, outerSignal);
+        })
+      );
     }
     customList.appendChild(grid);
   }
 }
 
+// Страница личной библиотеки: планы, просмотренное, избранное, оценки и подборки
 export function renderLibraryPage(container) {
   const dict = t();
   let activeTab = 'watchlist';
@@ -429,37 +444,7 @@ export function renderLibraryPage(container) {
         const grid = document.createElement('div');
         grid.className = 'cards-grid-3';
         for (const col of state.customCollections) {
-          const card = document.createElement('div');
-          card.className = 'collection-card';
-          card.innerHTML = `
-            <div style="cursor:pointer;" data-open-col>
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
-                <h3 style="margin:0;font-size:1.1rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(col.name)}</h3>
-                <span class="tabular-nums" style="font-size:0.75rem;color:var(--text-muted);flex-shrink:0;">${col.items.length} ${escapeHtml(dict.collections.titlesCount)}</span>
-              </div>
-              ${col.description ? `<p style="margin:6px 0 0;font-size:0.82rem;color:var(--text-muted);">${escapeHtml(col.description)}</p>` : ''}
-            </div>
-            <div style="padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;">
-              <button type="button" class="section-link" data-open-col>${escapeHtml(dict.home.seeAll)}${icons.arrowRight}</button>
-              <button type="button" class="btn btn-ghost" data-del-col style="width:32px;height:32px;padding:0;" aria-label="${escapeHtml(dict.collections.deleteBtn)}">${icons.trash}</button>
-            </div>
-          `;
-          card.querySelectorAll('[data-open-col]').forEach((el) => {
-            el.addEventListener('click', () => navigateTo(`/collections/custom/${col.id}`));
-          });
-          card.querySelector('[data-del-col]')?.addEventListener('click', () => {
-            openConfirmModal({
-              title: dict.collections.deleteConfirmTitle,
-              body: dict.collections.deleteConfirmBody,
-              confirmLabel: dict.collections.confirmDelete,
-              cancelLabel: dict.collections.cancelBtn,
-              onConfirm: () => {
-                deleteCollection(col.id);
-                render();
-              },
-            });
-          });
-          grid.appendChild(card);
+          grid.appendChild(createCustomCollectionCard(col, dict, render));
         }
         contentEl.appendChild(grid);
       }

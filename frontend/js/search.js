@@ -1,4 +1,4 @@
-import { getImageUrl, getMediaTitle, getMediaYear, tmdbApi } from './api.js';
+import { getImageUrl, getMediaTitle, getMediaType, getMediaYear, tmdbApi } from './api.js';
 import { translateDepartment } from './i18n.js';
 import { icons } from './icons.js';
 import { loadLastSearch, saveLastSearch } from './storage.js';
@@ -12,6 +12,36 @@ import {
   navigateTo,
 } from './ui.js';
 
+// Выбирает до 2 фильмов персоны с высоким рейтингом для полоски на карточке
+function getTopPersonMovies(person) {
+  const allKnown = Array.isArray(person.known_for) ? person.known_for : [];
+  const moviesOnly = allKnown.filter((item) => getMediaType(item, 'movie') === 'movie');
+  const sourceList = moviesOnly.length > 0 ? moviesOnly : allKnown;
+
+  const sorted = [...sourceList].sort((a, b) => {
+    const aHasVotes = (a.vote_count || 0) >= 80;
+    const bHasVotes = (b.vote_count || 0) >= 80;
+    if (aHasVotes !== bHasVotes) {
+      return bHasVotes ? 1 : -1;
+    }
+
+    const ratingDiff = (b.vote_average || 0) - (a.vote_average || 0);
+    if (Math.abs(ratingDiff) > 0.05) {
+      return ratingDiff;
+    }
+
+    return (b.popularity || 0) - (a.popularity || 0);
+  });
+
+  const topTwo = sorted.slice(0, 2);
+  const titles = topTwo.map((item) => getMediaTitle(item)).filter(Boolean).join(', ');
+  const firstRating = topTwo[0]?.vote_average;
+  const rating = typeof firstRating === 'number' && firstRating > 0 ? firstRating.toFixed(1) : null;
+
+  return { titles, rating };
+}
+
+// Страница расширенного поиска по фильмам, сериалам и персонам
 export function renderSearchPage(container, outerSignal) {
   const dict = t();
   const urlQ = new URLSearchParams(window.location.search).get('q');
@@ -112,12 +142,7 @@ export function renderSearchPage(container, outerSignal) {
 
       if (itemType === 'person') {
         const photo = getImageUrl(item.profile_path, 'w342');
-        const topKnown = [...(item.known_for || [])]
-          .sort((a, b) => (b.popularity || 0) - (a.popularity || 0) || (b.vote_count || 0) - (a.vote_count || 0))
-          .slice(0, 2)
-          .map((k) => getMediaTitle(k))
-          .filter(Boolean)
-          .join(', ');
+        const { titles: topKnown, rating: topRating } = getTopPersonMovies(item);
         const pCard = document.createElement('article');
         pCard.className = 'person-mini-card';
         pCard.tabIndex = 0;
@@ -125,7 +150,9 @@ export function renderSearchPage(container, outerSignal) {
         pCard.innerHTML = `
           ${
             topKnown
-              ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}<span>${escapeHtml(topKnown)}</span></div>`
+              ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}${
+                  topRating ? `<span class="person-mini-known-rating">★ ${escapeHtml(topRating)}</span>` : ''
+                }<span class="person-mini-known-titles">${escapeHtml(topKnown)}</span></div>`
               : ''
           }
           <div class="person-mini-photo">
@@ -223,6 +250,7 @@ export function renderSearchPage(container, outerSignal) {
   runSearch(query);
 }
 
+// Подключение живых подсказок к строке поиска в шапке сайта
 export function attachHeaderSearchBehavior(headerEl) {
   const dict = t();
   const wrap = headerEl.querySelector('#header-search-wrap');
@@ -271,18 +299,16 @@ export function attachHeaderSearchBehavior(headerEl) {
       const imgUrl = getImageUrl(isPerson ? item.profile_path : item.poster_path, 'w185');
       const title = getMediaTitle(item);
       const year = getMediaYear(item);
-      const target =
-        item.media_type === 'person'
-          ? `/person/${item.id}`
-          : item.media_type === 'tv'
-            ? `/series/${item.id}`
-            : `/movie/${item.id}`;
-      const badge =
-        item.media_type === 'person'
-          ? dict.search.personBadge
-          : item.media_type === 'tv'
-            ? dict.search.seriesBadge
-            : dict.search.movieBadge;
+
+      let target = `/movie/${item.id}`;
+      let badge = dict.search.movieBadge;
+      if (item.media_type === 'person') {
+        target = `/person/${item.id}`;
+        badge = dict.search.personBadge;
+      } else if (item.media_type === 'tv') {
+        target = `/series/${item.id}`;
+        badge = dict.search.seriesBadge;
+      }
 
       const btn = document.createElement('button');
       btn.type = 'button';

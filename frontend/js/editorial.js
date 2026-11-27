@@ -1,3 +1,4 @@
+// Редакционные подборки фильмов для главной и раздела «Коллекции»
 export const EDITORIAL_COLLECTIONS = [
   {
     slug: 'acclaimed-modern-classics',
@@ -70,6 +71,7 @@ export const EDITORIAL_COLLECTIONS = [
   },
 ];
 
+// Десятилетия для фильтрации на странице «Обзор»
 export const EXPLORE_DECADES = [
   { id: '2020s', labelEn: '2020s', labelRu: '2020-е', gte: '2020-01-01', lte: '2029-12-31' },
   { id: '2010s', labelEn: '2010s', labelRu: '2010-е', gte: '2010-01-01', lte: '2019-12-31' },
@@ -79,6 +81,7 @@ export const EXPLORE_DECADES = [
   { id: '1970s', labelEn: '1970s', labelRu: '1970-е', gte: '1970-01-01', lte: '1979-12-31' },
 ];
 
+// Основные страны кинематографа
 export const EXPLORE_COUNTRIES = [
   { code: 'US', nameEn: 'United States', nameRu: 'США' },
   { code: 'GB', nameEn: 'United Kingdom', nameRu: 'Великобритания' },
@@ -90,6 +93,7 @@ export const EXPLORE_COUNTRIES = [
   { code: 'DE', nameEn: 'Germany', nameRu: 'Германия' },
 ];
 
+// Подборки по настроению
 export const EXPLORE_MOODS = [
   {
     id: 'mind-bending',
@@ -125,6 +129,7 @@ export const EXPLORE_MOODS = [
   },
 ];
 
+// Доступные регионы для платформ просмотра
 export const WATCH_REGIONS = [
   { code: 'US', nameEn: 'United States (US)', nameRu: 'США (US)' },
   { code: 'GB', nameEn: 'United Kingdom (GB)', nameRu: 'Великобритания (GB)' },

@@ -1,8 +1,10 @@
+// Селекторы карточек с лёгким 3D-наклоном и кнопок с магнитным эффектом
 const ACCENT_CARD_SELECTOR =
   '.hero-spotlight, .editorial-card-compact, .collection-card, .random-result-card';
 const MAGNETIC_BTN_SELECTOR =
   '.btn-primary:not(:disabled), .header-search-submit, .profile-btn, .back-to-top';
 
+// Сброс наклона у карточки
 function resetCard(el) {
   if (!el) return;
   el.classList.remove('is-tilting');
@@ -12,6 +14,7 @@ function resetCard(el) {
   el.style.removeProperty('--mag-y');
 }
 
+// Сброс смещения у кнопки
 function resetButton(el) {
   if (!el) return;
   el.classList.remove('is-magnetic');
@@ -19,6 +22,7 @@ function resetButton(el) {
   el.style.removeProperty('--btn-my');
 }
 
+// Подключение интерактивных эффектов курсора только на устройствах с мышью
 export function initInteractiveEffects() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 

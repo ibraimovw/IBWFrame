@@ -1,3 +1,4 @@
+// Работа с localStorage и sessionStorage браузера
 const STORAGE_KEYS = {
   profile: 'ibwframe_profile_v1',
   lang: 'ibwframe_lang_v1',
@@ -28,7 +29,7 @@ function safeWriteJson(storage, key, value) {
   try {
     storage.setItem(key, JSON.stringify(value));
   } catch {
-    // Ignore quota or private mode failures
+    // Игнорируем ошибку, если память браузера заполнена или отключена
   }
 }
 
@@ -91,7 +92,7 @@ export function saveLang(lang) {
   try {
     window.localStorage.setItem(STORAGE_KEYS.lang, lang);
   } catch {
-    // Ignore storage errors
+    // Игнорируем ошибку записи
   }
 }
 
@@ -109,7 +110,7 @@ export function saveTheme(theme) {
   try {
     window.localStorage.setItem(STORAGE_KEYS.theme, theme);
   } catch {
-    // Ignore storage errors
+    // Игнорируем ошибку записи
   }
 }
 
@@ -127,7 +128,7 @@ export function saveWatchRegion(region) {
   try {
     window.localStorage.setItem(STORAGE_KEYS.watchRegion, region);
   } catch {
-    // Ignore storage errors
+    // Игнорируем ошибку записи
   }
 }
 
@@ -208,7 +209,7 @@ export function saveLastSearch(query) {
   try {
     window.sessionStorage.setItem(STORAGE_KEYS.lastSearch, query);
   } catch {
-    // Ignore storage errors
+    // Игнорируем ошибку записи
   }
 }
 

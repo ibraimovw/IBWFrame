@@ -1,4 +1,4 @@
-/* Buttons: Crisp anti-aliased edges (no 1px border-bleed rim) + Magnetic Pull */
+/* Кнопки с ровными краями и магнитным эффектом */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -91,7 +91,7 @@
   background-color: var(--accent-brand-soft);
 }
 
-/* Section Headers & Horizontal Rails */
+/* Заголовки секций и горизонтальные ленты */
 .section-header {
   display: flex;
   align-items: flex-end;
@@ -236,7 +236,7 @@
   }
 }
 
-/* Media Card (Vertical Poster + Hover Lift & Quick Favorite + Genre Hint) */
+/* Карточка фильма или сериала */
 .media-card {
   display: flex;
   flex-direction: column;
@@ -405,7 +405,7 @@
   font-weight: 700;
 }
 
-/* Category Tabs & Pills (Steel Gray base + Logo Red active state) */
+/* Вкладки категорий */
 .tabs-row {
   display: flex;
   align-items: center;
@@ -450,7 +450,7 @@
   height: 14px;
 }
 
-/* Forms & Controls */
+/* Поля ввода и выпадающие списки */
 .input-control,
 .select-control,
 .textarea-control {
@@ -490,7 +490,7 @@
   color: var(--text-secondary);
 }
 
-/* Modals (bigger close button & generous mobile trailer modal) */
+/* Модальные окна */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -528,7 +528,7 @@
   }
 }
 
-/* Larger Trailer Modal (especially roomy on phones + wide cinema feel on desktop) */
+/* Широкое окно для плеера трейлера */
 .modal-panel-wide {
   max-width: 1120px;
   width: 100%;
@@ -566,7 +566,7 @@
   color: var(--text-primary);
 }
 
-/* Larger Close X button (42x42 touch target + 22px crisp X) */
+/* Крупная кнопка закрытия модального окна */
 .modal-close-btn {
   width: 42px;
   height: 42px;
@@ -592,7 +592,7 @@
   height: 22px;
 }
 
-/* Skeletons */
+/* Заглушки на время загрузки */
 @keyframes shimmer {
   0% {
     opacity: 0.55;
@@ -623,7 +623,7 @@
   margin-top: 8px;
 }
 
-/* State Views (Empty / Error) */
+/* Карточки пустого состояния и ошибок */
 .state-card {
   max-width: 560px;
   margin: 24px auto;
@@ -675,10 +675,10 @@
   gap: 10px;
 }
 
-/* Toasts (shifted cleanly above right-side Back-to-Top button) */
+/* Всплывающие уведомления */
 .toast-stack {
   position: fixed;
-  bottom: 136px;
+  bottom: calc(158px + env(safe-area-inset-bottom, 0px));
   right: 16px;
   z-index: 70;
   display: flex;
@@ -718,10 +718,10 @@
   flex-shrink: 0;
 }
 
-/* Back to Top: Larger (52x52) on the RIGHT side with seamless border-free hover */
+/* Кнопка «Наверх» справа */
 .back-to-top {
   position: fixed;
-  bottom: 72px;
+  bottom: calc(94px + env(safe-area-inset-bottom, 0px));
   right: 16px;
   left: auto;
   z-index: 35;

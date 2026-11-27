@@ -1,3 +1,4 @@
+// Серверный прокси к TMDB API с кешем и защитой от частых запросов
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 const CACHE_MAX_ENTRIES = 350;
@@ -309,7 +310,7 @@ function pickBestYoutubeFromHtml(html, title, originalTitle) {
           if (ranked[0]?.id) return ranked[0].id;
         }
       } catch {
-        // Fallback to regex extraction below
+        // Если JSON не разобрался — переходим к запасному поиску по regex
       }
     }
   }
@@ -386,7 +387,7 @@ async function enrichVideos(mediaType, id, data, language) {
         ];
       }
     } catch {
-      // Ignore secondary video lookup errors
+      // Ошибка дополнительного поиска видео не критична
     }
   }
 
@@ -414,9 +415,12 @@ async function fetchPopularDirectors(language) {
   ]);
 
   const movieMap = new Map();
-  for (const m of [...(popMovies.results || []), ...(topMovies.results || [])]) {
+  for (const m of [
+    ...(topMovies.results || []).slice(0, 10),
+    ...(popMovies.results || []).slice(0, 10),
+  ]) {
     if (m?.id && !movieMap.has(m.id)) {
-      movieMap.set(m.id, m);
+      movieMap.set(m.id, { ...m, media_type: 'movie' });
     }
   }
 
@@ -443,12 +447,19 @@ async function fetchPopularDirectors(language) {
         });
       } else {
         const existing = directorsMap.get(member.id);
-        if (movie && existing.known_for.length < 3 && !existing.known_for.some((k) => k.id === movie.id)) {
+        if (movie && !existing.known_for.some((k) => k.id === movie.id)) {
           existing.known_for.push(movie);
         }
       }
     }
   });
+
+  for (const director of directorsMap.values()) {
+    director.known_for.sort(
+      (a, b) => (b.vote_average || 0) - (a.vote_average || 0) || (b.popularity || 0) - (a.popularity || 0)
+    );
+    director.known_for = director.known_for.slice(0, 3);
+  }
 
   const directors = Array.from(directorsMap.values()).sort(
     (a, b) => (b.popularity || 0) - (a.popularity || 0)
@@ -458,9 +469,7 @@ async function fetchPopularDirectors(language) {
   return payload;
 }
 
-/**
- * Pure Node.js request handler for /api/* routes (used by both local HTTP server and Vercel).
- */
+// Главный обработчик всех маршрутов /api/* (локальный сервер и Vercel)
 export async function handleApiRequest(req, res, parsedUrl) {
   if (req.method !== 'GET') {
     sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED', message: 'Only GET requests are allowed.' });
@@ -470,6 +479,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
   const pathname = parsedUrl.pathname;
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
 
+  // Проверка состояния сервера и наличия ключа TMDB
   if (pathname === '/api/health') {
     const key = getTmdbKey();
     sendJson(res, 200, {
@@ -495,7 +505,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
   const segments = pathname.replace(/^\/api\/tmdb\//, '').split('/').filter(Boolean);
 
   try {
-    // /api/tmdb/trending/:mediaType/:timeWindow
+    // Тренды за день или неделю
     if (segments[0] === 'trending' && segments.length === 3) {
       const [, mediaType, timeWindow] = segments;
       if (!['movie', 'tv', 'all'].includes(mediaType) || !['day', 'week'].includes(timeWindow)) {
@@ -510,7 +520,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/movies/:category
+    // Подборки фильмов по категориям
     if (segments[0] === 'movies' && segments.length === 2) {
       const category = segments[1];
       if (!['popular', 'top_rated', 'upcoming', 'now_playing'].includes(category)) {
@@ -525,7 +535,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/series/:category
+    // Подборки сериалов по категориям
     if (segments[0] === 'series' && segments.length === 2) {
       const category = segments[1];
       if (!['popular', 'top_rated', 'airing_today', 'on_the_air'].includes(category)) {
@@ -540,7 +550,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/discover/:mediaType
+    // Расширенный фильтр (Discover)
     if (segments[0] === 'discover' && segments.length === 2) {
       const mediaType = segments[1];
       if (!['movie', 'tv'].includes(mediaType)) {
@@ -552,7 +562,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/search/:type
+    // Поиск по фильмам, сериалам и персонам
     if (segments[0] === 'search' && segments.length === 2) {
       const type = segments[1];
       if (!['multi', 'movie', 'tv', 'person'].includes(type)) {
@@ -577,7 +587,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/movie/:id
+    // Карточка конкретного фильма
     if (segments[0] === 'movie' && segments.length === 2) {
       const id = segments[1];
       if (!POSITIVE_INT_RE.test(id)) {
@@ -599,7 +609,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
             data._overviewFallbackEn = true;
           }
         } catch {
-          // Ignore fallback errors
+          // Пропускаем ошибку запасного перевода
         }
       }
       await enrichVideos('movie', id, data, language);
@@ -607,7 +617,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/tv/:id
+    // Карточка конкретного сериала
     if (segments[0] === 'tv' && segments.length === 2) {
       const id = segments[1];
       if (!POSITIVE_INT_RE.test(id)) {
@@ -629,7 +639,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
             data._overviewFallbackEn = true;
           }
         } catch {
-          // Ignore fallback errors
+          // Пропускаем ошибку запасного перевода
         }
       }
       await enrichVideos('tv', id, data, language);
@@ -637,7 +647,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/person/popular
+    // Популярные актёры
     if (segments[0] === 'person' && segments[1] === 'popular' && segments.length === 2) {
       const data = await fetchFromTmdb('/person/popular', {
         language: sanitizeLanguage(query.language),
@@ -647,14 +657,14 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/person/directors
+    // Популярные режиссёры
     if (segments[0] === 'person' && segments[1] === 'directors' && segments.length === 2) {
       const data = await fetchPopularDirectors(sanitizeLanguage(query.language));
       sendJson(res, 200, data);
       return;
     }
 
-    // /api/tmdb/person/:id
+    // Подробная информация о персоне
     if (segments[0] === 'person' && segments.length === 2) {
       const id = segments[1];
       if (!POSITIVE_INT_RE.test(id)) {
@@ -675,14 +685,14 @@ export async function handleApiRequest(req, res, parsedUrl) {
             data._bioFallbackEn = true;
           }
         } catch {
-          // Ignore fallback errors
+          // Пропускаем ошибку запасного перевода
         }
       }
       sendJson(res, 200, data);
       return;
     }
 
-    // /api/tmdb/genres/:mediaType
+    // Список жанров
     if (segments[0] === 'genres' && segments.length === 2) {
       const mediaType = segments[1];
       if (!['movie', 'tv'].includes(mediaType)) {
@@ -696,7 +706,7 @@ export async function handleApiRequest(req, res, parsedUrl) {
       return;
     }
 
-    // /api/tmdb/countries
+    // Список стран
     if (segments[0] === 'countries' && segments.length === 1) {
       const data = await fetchFromTmdb('/configuration/countries', {});
       sendJson(res, 200, data);

@@ -1,4 +1,4 @@
-import { getImageUrl, getMediaTitle, tmdbApi } from './api.js';
+import { getImageUrl, getMediaTitle, getMediaType, tmdbApi } from './api.js';
 import { translateDepartment } from './i18n.js';
 import { icons } from './icons.js';
 import { state, t } from './store.js';
@@ -11,6 +11,36 @@ import {
   navigateTo,
 } from './ui.js';
 
+// Выбирает до 2 фильмов персоны с высоким рейтингом для верхней полоски карточки
+function getTopPersonMovies(person) {
+  const allKnown = Array.isArray(person.known_for) ? person.known_for : [];
+  const moviesOnly = allKnown.filter((item) => getMediaType(item, 'movie') === 'movie');
+  const sourceList = moviesOnly.length > 0 ? moviesOnly : allKnown;
+
+  const sorted = [...sourceList].sort((a, b) => {
+    const aHasVotes = (a.vote_count || 0) >= 80;
+    const bHasVotes = (b.vote_count || 0) >= 80;
+    if (aHasVotes !== bHasVotes) {
+      return bHasVotes ? 1 : -1;
+    }
+
+    const ratingDiff = (b.vote_average || 0) - (a.vote_average || 0);
+    if (Math.abs(ratingDiff) > 0.05) {
+      return ratingDiff;
+    }
+
+    return (b.popularity || 0) - (a.popularity || 0);
+  });
+
+  const topTwo = sorted.slice(0, 2);
+  const titles = topTwo.map((item) => getMediaTitle(item)).filter(Boolean).join(', ');
+  const firstRating = topTwo[0]?.vote_average;
+  const rating = typeof firstRating === 'number' && firstRating > 0 ? firstRating.toFixed(1) : null;
+
+  return { titles, rating };
+}
+
+// Страница списка актёров и режиссёров
 export function renderPeoplePage(container, outerSignal) {
   const dict = t();
   let query = '';
@@ -103,12 +133,7 @@ export function renderPeoplePage(container, outerSignal) {
     for (const person of displayList) {
       const photo = getImageUrl(person.profile_path, 'w342');
       const deptLabel = translateDepartment(person.known_for_department || '', state.lang);
-      const topKnown = [...(person.known_for || [])]
-        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0) || (b.vote_count || 0) - (a.vote_count || 0))
-        .slice(0, 2)
-        .map((k) => getMediaTitle(k))
-        .filter(Boolean)
-        .join(', ');
+      const { titles: topKnown, rating: topRating } = getTopPersonMovies(person);
       const card = document.createElement('article');
       card.className = 'person-mini-card';
       card.tabIndex = 0;
@@ -116,7 +141,9 @@ export function renderPeoplePage(container, outerSignal) {
       card.innerHTML = `
         ${
           topKnown
-            ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}<span>${escapeHtml(topKnown)}</span></div>`
+            ? `<div class="person-mini-known-bar" title="${escapeHtml(`${dict.people.popularFilmsLabel}: ${topKnown}`)}">${icons.film}${
+                topRating ? `<span class="person-mini-known-rating">★ ${escapeHtml(topRating)}</span>` : ''
+              }<span class="person-mini-known-titles">${escapeHtml(topKnown)}</span></div>`
             : ''
         }
         <div class="person-mini-photo">
@@ -143,6 +170,7 @@ export function renderPeoplePage(container, outerSignal) {
     gridEl.appendChild(grid);
   }
 
+  // Загрузка актёров, режиссёров или результатов поиска
   async function loadPeople() {
     if (reqController) reqController.abort();
     reqController = new AbortController();
@@ -206,6 +234,7 @@ export function renderPeoplePage(container, outerSignal) {
   loadPeople();
 }
 
+// Детальная страница актёра или режиссёра с биографией и фильмографией
 export function renderPersonDetailPage(container, id, outerSignal) {
   const dict = t();
 
@@ -235,12 +264,13 @@ export function renderPersonDetailPage(container, id, outerSignal) {
 
       const castCredits = dedupeAndSort(person.combined_credits?.cast);
       const crewCredits = dedupeAndSort(person.combined_credits?.crew);
-      let creditTab =
-        person.known_for_department === 'Directing' && crewCredits.length > 0
-          ? 'crew'
-          : castCredits.length === 0 && crewCredits.length > 0
-            ? 'crew'
-            : 'cast';
+
+      let creditTab = 'cast';
+      if (person.known_for_department === 'Directing' && crewCredits.length > 0) {
+        creditTab = 'crew';
+      } else if (castCredits.length === 0 && crewCredits.length > 0) {
+        creditTab = 'crew';
+      }
 
       const photoUrl = getImageUrl(person.profile_path, 'w500');
 

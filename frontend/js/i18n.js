@@ -1,5 +1,6 @@
 import { loadStoredLang, saveLang } from './storage.js';
 
+// Словарь всех текстов интерфейса (английский и русский)
 export const translations = {
   en: {
     brand: 'IBWFrame',
@@ -653,6 +654,7 @@ export const translations = {
   },
 };
 
+// Определяем язык при первом запуске по настройкам браузера
 export function detectInitialLang() {
   const stored = loadStoredLang();
   if (stored) return stored;
@@ -664,14 +666,18 @@ export function detectInitialLang() {
   }
 }
 
+// Сохраняем язык и обновляем атрибут lang у документа
 export function setDocumentLang(lang) {
   saveLang(lang);
   document.documentElement.lang = lang;
 }
 
+// Возвращаем объект переводов для выбранного языка
 export function getT(lang) {
   return translations[lang] || translations.en;
 }
+
+// Словари перевода отделов, должностей и статусов релиза на русский
 
 const DEPARTMENT_RU = {
   Acting: 'Актёр',

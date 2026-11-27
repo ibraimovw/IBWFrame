@@ -1,5 +1,6 @@
 import { tmdbApi } from './api.js';
 
+// Вычисляем до 3 любимых жанров по просмотрам, избранному и оценкам
 export function deriveFavoriteGenreIds({ watched, favorites, ratings }) {
   const weights = new Map();
 
@@ -30,6 +31,7 @@ export function deriveFavoriteGenreIds({ watched, favorites, ratings }) {
     .map(([genreId]) => genreId);
 }
 
+// Загружаем персональные рекомендации или популярную подборку
 export async function fetchPersonalizedRecommendations({
   watched,
   favorites,
